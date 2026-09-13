@@ -2,12 +2,21 @@
     "name": "drupal/klaxon",
     "type": "drupal-module",
     "description": "Build business alerts in the UI: pick what to measure, when to check it, and where to send it.",
-    "keywords": ["Drupal", "alerting", "notifications", "monitoring", "reporting"],
+    "keywords": [
+        "Drupal",
+        "alerting",
+        "notifications",
+        "monitoring",
+        "reporting"
+    ],
     "license": "GPL-2.0-or-later",
     "homepage": "https://www.drupal.org/project/klaxon",
     "require": {
         "php": ">=8.3",
         "drupal/core": "^11.4",
         "dragonmantank/cron-expression": "^3.3"
+    },
+    "require-dev": {
+        "drupal/commerce": "^3"
     }
 }

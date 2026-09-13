@@ -188,6 +188,73 @@ implements, which is what keeps the form down to one question:
 | `EntityEventAlertInterface` | entity insert, update and delete |
 | neither | only `klaxon.dispatcher->fire()` |
 
+From there every alert takes the same path. The decisions are all in one
+place on purpose: a type decides *what is true*, and nothing else, while when
+to speak and how hard to try are the same for all of them.
+
+```
+     cron, when due        an entity saved        code calls fire()
+            │                     │                      │
+            └──────────┬──────────┴──────────────────────┘
+                       ▼
+                    read()  ──── throws ──▶  logged as a broken alert.
+                       │                     Status left alone, so a later
+                       │                     good read still counts as a
+                       ▼                     change. Nothing is sent.
+        per_row? drop the rows the
+        ledger has already reported
+                       │
+                       ▼
+                   fires()? ─── no ──▶ was it firing until now?
+                       │                       │
+                      yes            no ◀──────┴──────▶ yes, and notify_on
+                       │             │                  is change_and_recovery
+                       │             ▼                          │
+                       │          silence                       ▼
+                       │                              "recovered" message
+                       ▼
+        cooldown still running?  ──── yes ──▶ silence
+        already firing, and notify_on
+        is change or change_and_recovery?
+                       │
+                       no
+                       ▼
+                 render the message
+                       │
+        ┌──────────────┴───────────────┐
+        │                              │
+   "Run now"                    cron / entity save
+   in the UI                            │
+        │                               ▼
+        │                    one queue job per channel
+        │                               │
+        └───────────┬───────────────────┘
+                    ▼
+             transport->send()
+                    │
+   ┌────────────┬───┴────────┬─────────────────────┐
+   ▼            ▼            ▼                     ▼
+ sent      rate limited   temporary            permanent
+   │            │         failure              failure
+ done           │            │                     │
+                ▼            ▼                     │
+        the whole queue   attempt + 1,             │
+        stops until the   held back for            │
+        next cron run.    retry_delay,             │
+        The attempt is    doubling each            │
+        not counted:      time, capped             │
+        being asked to    at an hour               │
+        wait is nobody's       │                   │
+        fault.            max_attempts             │
+                          reached ─────────────────┤
+                                                   ▼
+                                       logged as lost, and the
+                                       fallback channel is told —
+                                       sent directly, never queued,
+                                       because the queue is the
+                                       thing that just failed.
+```
+
 ## The blank for developers
 
 Not everything worth alerting on can be described in a form. The **code** alert
