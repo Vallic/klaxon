@@ -1,0 +1,11 @@
+entity.klaxon_alert.add_form:
+  route_name: entity.klaxon_alert.add_form
+  title: 'Add alert'
+  appears_on:
+    - entity.klaxon_alert.collection
+
+entity.klaxon_channel.add_form:
+  route_name: entity.klaxon_channel.add_form
+  title: 'Add channel'
+  appears_on:
+    - entity.klaxon_channel.collection

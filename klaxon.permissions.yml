@@ -1,0 +1,11 @@
+administer klaxon alerts:
+  title: 'Administer Klaxon alerts'
+  description: 'Create, edit and delete alerts, and choose which channels they use.'
+
+administer klaxon channels:
+  title: 'Administer Klaxon channels'
+  description: 'Create and configure delivery channels, including their credentials.'
+  restrict access: true
+
+view klaxon history:
+  title: 'View Klaxon alert history'

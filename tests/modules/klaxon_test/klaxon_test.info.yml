@@ -1,0 +1,7 @@
+name: 'Klaxon test fixtures'
+type: module
+description: 'A transport that fails on demand, so the retry and escalation paths can be tested.'
+package: Testing
+core_version_requirement: ^11.4
+dependencies:
+  - klaxon:klaxon

@@ -1,0 +1,3 @@
+services:
+  Drupal\klaxon_commerce\Hook\KlaxonCommerceHooks:
+    autowire: true

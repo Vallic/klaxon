@@ -1,0 +1,252 @@
+klaxon.settings:
+  type: config_object
+  label: 'Klaxon settings'
+  mapping:
+    max_attempts:
+      type: integer
+      label: 'Delivery attempts before giving up'
+    retry_delay:
+      type: integer
+      label: 'Seconds before the first retry, doubling each attempt'
+    fallback_channel:
+      type: string
+      label: 'Channel told when delivery fails for good'
+
+klaxon.alert.*:
+  type: config_entity
+  label: 'Klaxon alert'
+  mapping:
+    id:
+      type: machine_name
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    description:
+      type: text
+      label: 'Description'
+    type:
+      type: klaxon.alert_type.[id]
+      label: 'Alert type'
+    channels:
+      type: sequence
+      label: 'Channels'
+      sequence:
+        type: string
+        label: 'Channel ID'
+    notify_on:
+      type: string
+      label: 'When to notify'
+    cooldown:
+      type: integer
+      label: 'Cooldown in seconds'
+    per_row:
+      type: boolean
+      label: 'Report each row once'
+    severity:
+      type: string
+      label: 'Severity'
+    subject:
+      type: label
+      label: 'Subject template'
+    body:
+      type: text
+      label: 'Body template'
+
+klaxon.channel.*:
+  type: config_entity
+  label: 'Klaxon channel'
+  mapping:
+    id:
+      type: machine_name
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    description:
+      type: text
+      label: 'Description'
+    transport:
+      type: klaxon.transport.[id]
+      label: 'Transport'
+
+# Plugin bases. Each plugin type falls back to these when a plugin ships no
+# schema of its own, so a third-party plugin is never a config validation error.
+klaxon.plugin_base:
+  type: mapping
+  mapping:
+    id:
+      type: string
+      label: 'Plugin ID'
+
+klaxon.alert_type.*:
+  type: klaxon.plugin_base
+  label: 'Alert type settings'
+
+# Every alert type cron evaluates answers the same two questions, whatever it
+# measures, so they share a type rather than repeating the keys.
+klaxon.alert_type_scheduled:
+  type: klaxon.plugin_base
+  label: 'Scheduled alert settings'
+  mapping:
+    cron:
+      type: string
+      label: 'Cron expression'
+    interval:
+      type: integer
+      label: 'Interval in seconds'
+    operator:
+      type: string
+      label: 'Threshold operator'
+    value:
+      type: float
+      label: 'Threshold value'
+
+klaxon.transport.*:
+  type: klaxon.plugin_base
+  label: 'Transport settings'
+
+klaxon.alert_type.code:
+  type: klaxon.plugin_base
+  label: 'Code-fired alert'
+
+klaxon.alert_type.entity_event:
+  type: klaxon.plugin_base
+  label: 'Content change alert'
+  mapping:
+    entity_type:
+      type: string
+      label: 'Entity type'
+    bundles:
+      type: sequence
+      label: 'Bundles'
+      sequence:
+        type: string
+    operations:
+      type: sequence
+      label: 'Operations'
+      sequence:
+        type: string
+    field:
+      type: string
+      label: 'Field to watch'
+    from_value:
+      type: string
+      label: 'Previous value'
+    to_value:
+      type: string
+      label: 'New value'
+
+# Every prefilled alert type in a submodule extends this one, so its schema
+# extends this too rather than repeating the query and threshold keys.
+klaxon.alert_type.entity_query:
+  type: klaxon.alert_type_scheduled
+  label: 'Scheduled query alert'
+  mapping:
+    entity_type:
+      type: string
+      label: 'Entity type'
+    bundle:
+      type: string
+      label: 'Bundle'
+    conditions:
+      type: sequence
+      label: 'Query conditions'
+      sequence:
+        type: mapping
+        mapping:
+          field:
+            type: string
+            label: 'Field'
+          operator:
+            type: string
+            label: 'Operator'
+          value:
+            type: string
+            label: 'Value'
+    date_field:
+      type: string
+      label: 'Date field'
+    date_storage:
+      type: string
+      label: 'Date storage'
+    window_from:
+      type: string
+      label: 'Window start'
+    window_to:
+      type: string
+      label: 'Window end'
+    aggregate:
+      type: string
+      label: 'Aggregate'
+    sum_field:
+      type: string
+      label: 'Field to sum'
+    limit:
+      type: integer
+      label: 'Maximum rows'
+
+klaxon.transport.log:
+  type: klaxon.plugin_base
+  label: 'Log transport'
+
+klaxon.transport.mail:
+  type: klaxon.plugin_base
+  label: 'Mail transport'
+  mapping:
+    recipients:
+      type: string
+      label: 'Recipients'
+    langcode:
+      type: string
+      label: 'Language'
+
+klaxon.transport.slack:
+  type: klaxon.plugin_base
+  label: 'Slack transport'
+  mapping:
+    webhook_url:
+      type: uri
+      label: 'Incoming webhook URL'
+
+klaxon.transport.telegram:
+  type: klaxon.plugin_base
+  label: 'Telegram transport'
+  mapping:
+    token:
+      type: string
+      label: 'Bot token'
+    chat_id:
+      type: string
+      label: 'Chat ID'
+    silent:
+      type: boolean
+      label: 'Deliver silently'
+
+klaxon.transport.webhook:
+  type: klaxon.plugin_base
+  label: 'Webhook transport'
+  mapping:
+    url:
+      type: uri
+      label: 'URL'
+    method:
+      type: string
+      label: 'HTTP method'
+    headers:
+      type: text
+      label: 'Headers'
+    secret:
+      type: string
+      label: 'Signing secret'
+
+klaxon.transport.discord:
+  type: klaxon.plugin_base
+  label: 'Discord transport'
+  mapping:
+    webhook_url:
+      type: uri
+      label: 'Channel webhook URL'
+    username:
+      type: string
+      label: 'Post as'

@@ -1,0 +1,7 @@
+name: 'Klaxon System'
+type: module
+description: 'Alerts about the site itself: cron falling behind, errors piling up in the log, queues that stopped draining.'
+package: Klaxon
+core_version_requirement: ^11.4
+dependencies:
+  - klaxon:klaxon

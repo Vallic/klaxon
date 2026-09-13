@@ -1,0 +1,7 @@
+klaxon.transport.failing:
+  type: klaxon.plugin_base
+  label: 'Failing transport'
+  mapping:
+    mode:
+      type: string
+      label: 'Behaviour'

@@ -1,0 +1,17 @@
+klaxon.admin:
+  title: 'Klaxon'
+  description: 'Alerts that tell you when something worth knowing happens.'
+  parent: system.admin_config_system
+  route_name: klaxon.admin
+
+entity.klaxon_alert.collection:
+  title: 'Alerts'
+  description: 'One thing worth knowing about, and where to say it.'
+  parent: klaxon.admin
+  route_name: entity.klaxon_alert.collection
+
+entity.klaxon_channel.collection:
+  title: 'Channels'
+  description: 'Where alerts get delivered, and the credentials to get there.'
+  parent: klaxon.admin
+  route_name: entity.klaxon_channel.collection

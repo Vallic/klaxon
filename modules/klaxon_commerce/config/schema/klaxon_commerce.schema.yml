@@ -1,0 +1,50 @@
+# Every order alert is a scheduled entity query with the same four extra
+# questions, so they share one type rather than repeating it four times.
+klaxon_commerce.order_alert:
+  type: klaxon.alert_type.entity_query
+  label: 'Order alert settings'
+  mapping:
+    order_types:
+      type: sequence
+      label: 'Order types'
+      sequence:
+        type: string
+    states:
+      type: sequence
+      label: 'Order states'
+      sequence:
+        type: string
+    store_id:
+      type: string
+      label: 'Store'
+    currency:
+      type: string
+      label: 'Currency'
+
+klaxon.alert_type.commerce_sales:
+  type: klaxon_commerce.order_alert
+  label: 'Sales total alert'
+
+klaxon.alert_type.commerce_quiet:
+  type: klaxon_commerce.order_alert
+  label: 'Nothing sold alert'
+  mapping:
+    minutes:
+      type: integer
+      label: 'Minutes of silence'
+
+klaxon.alert_type.commerce_stuck_orders:
+  type: klaxon_commerce.order_alert
+  label: 'Stuck orders alert'
+  mapping:
+    hours:
+      type: integer
+      label: 'Hours untouched'
+
+klaxon.alert_type.commerce_abandoned_carts:
+  type: klaxon_commerce.order_alert
+  label: 'Abandoned carts alert'
+  mapping:
+    hours:
+      type: integer
+      label: 'Hours untouched'

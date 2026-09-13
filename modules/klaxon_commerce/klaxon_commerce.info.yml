@@ -1,0 +1,8 @@
+name: 'Klaxon Commerce'
+type: module
+description: 'Alerts a shop actually wants: the daily takings, nothing sold in half an hour, orders stuck in a state, carts left behind.'
+package: Klaxon
+core_version_requirement: ^11.4
+dependencies:
+  - klaxon:klaxon
+  - commerce:commerce_order

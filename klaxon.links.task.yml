@@ -1,0 +1,15 @@
+entity.klaxon_alert.collection:
+  title: 'Alerts'
+  route_name: entity.klaxon_alert.collection
+  base_route: klaxon.admin
+
+entity.klaxon_channel.collection:
+  title: 'Channels'
+  route_name: entity.klaxon_channel.collection
+  base_route: klaxon.admin
+
+klaxon.settings:
+  title: 'Settings'
+  route_name: klaxon.settings
+  base_route: klaxon.admin
+  weight: 10

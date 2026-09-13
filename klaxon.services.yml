@@ -1,0 +1,48 @@
+services:
+  plugin.manager.klaxon_alert_type:
+    class: Drupal\klaxon\AlertType\AlertTypeManager
+    parent: default_plugin_manager
+
+  plugin.manager.klaxon_transport:
+    class: Drupal\klaxon\Transport\TransportManager
+    parent: default_plugin_manager
+
+  klaxon.state:
+    class: Drupal\klaxon\Alert\StateStore
+    arguments: ['@database']
+
+  klaxon.renderer:
+    class: Drupal\klaxon\Alert\MessageRenderer
+    arguments: ['@token', '@string_translation']
+
+  klaxon.runner:
+    class: Drupal\klaxon\Alert\AlertRunner
+    arguments:
+      - '@entity_type.manager'
+      - '@klaxon.state'
+      - '@klaxon.renderer'
+      - '@logger.channel.klaxon'
+      - '@datetime.time'
+
+  klaxon.deliverer:
+    class: Drupal\klaxon\Alert\Deliverer
+    arguments: ['@entity_type.manager', '@queue', '@logger.channel.klaxon']
+
+  klaxon.dispatcher:
+    class: Drupal\klaxon\Alert\Dispatcher
+    arguments:
+      - '@entity_type.manager'
+      - '@klaxon.runner'
+      - '@klaxon.deliverer'
+      - '@logger.channel.klaxon'
+
+  Drupal\klaxon\Hook\KlaxonHooks:
+    autowire: true
+    arguments:
+      $dispatcher: '@klaxon.dispatcher'
+      $state: '@klaxon.state'
+      $time: '@datetime.time'
+
+  logger.channel.klaxon:
+    parent: logger.channel_base
+    arguments: ['klaxon']

@@ -1,0 +1,83 @@
+<?php
+
+/**
+ * @file
+ * Install and schema hooks for Klaxon.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_schema().
+ */
+function klaxon_schema(): array {
+  $schema['klaxon_state'] = [
+    'description' => 'One row per alert holding what happened last time it ran.',
+    'fields' => [
+      'alert_id' => [
+        'type' => 'varchar_ascii',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'last_run' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'When the alert was last evaluated.',
+      ],
+      'last_fired' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'When it last produced a message.',
+      ],
+      'last_value' => [
+        'type' => 'float',
+        'not null' => FALSE,
+        'description' => 'The measure from the last evaluation, for change detection.',
+      ],
+      'status' => [
+        'type' => 'varchar_ascii',
+        'length' => 16,
+        'not null' => TRUE,
+        'default' => 'ok',
+        'description' => 'ok or firing. Drives change-only notification.',
+      ],
+      'fire_count' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+    ],
+    'primary key' => ['alert_id'],
+  ];
+
+  $schema['klaxon_ledger'] = [
+    'description' => 'Rows an alert has already reported, so it never repeats one.',
+    'fields' => [
+      'alert_id' => [
+        'type' => 'varchar_ascii',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'row_key' => [
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'description' => 'The stable key the source gave this row.',
+      ],
+      'fired' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+    ],
+    'primary key' => ['alert_id', 'row_key'],
+    'indexes' => [
+      'fired' => ['fired'],
+    ],
+  ];
+
+  return $schema;
+}

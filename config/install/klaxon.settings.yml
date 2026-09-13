@@ -1,0 +1,3 @@
+max_attempts: 3
+retry_delay: 60
+fallback_channel: ''

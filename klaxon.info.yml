@@ -1,0 +1,5 @@
+name: Klaxon
+type: module
+description: 'Build business alerts in the UI: pick what to measure, when to check it, and where to send it.'
+package: Klaxon
+core_version_requirement: ^11.4

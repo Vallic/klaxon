@@ -1,0 +1,28 @@
+klaxon.admin:
+  path: '/admin/config/system/klaxon'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'Klaxon'
+  requirements:
+    _permission: 'administer klaxon alerts+administer klaxon channels'
+
+klaxon.settings:
+  path: '/admin/config/system/klaxon/settings'
+  defaults:
+    _form: '\Drupal\klaxon\Form\SettingsForm'
+    _title: 'Settings'
+  requirements:
+    _permission: 'administer klaxon alerts'
+
+klaxon.alert_run:
+  path: '/admin/config/system/klaxon/alerts/{klaxon_alert}/run'
+  defaults:
+    _controller: '\Drupal\klaxon\Controller\RunAlert::run'
+    _title: 'Run alert'
+  options:
+    parameters:
+      klaxon_alert:
+        type: 'entity:klaxon_alert'
+  requirements:
+    _permission: 'administer klaxon alerts'
+    _csrf_token: 'TRUE'

@@ -1,0 +1,36 @@
+klaxon.alert_type.system_cron:
+  type: klaxon.alert_type_scheduled
+  label: 'Cron lag alert'
+  mapping:
+    hours:
+      type: integer
+      label: 'Hours before cron counts as behind'
+
+klaxon.alert_type.system_errors:
+  type: klaxon.alert_type_scheduled
+  label: 'Logged errors alert'
+  mapping:
+    severity:
+      type: integer
+      label: 'Highest severity counted'
+    channels:
+      type: sequence
+      label: 'Log channels'
+      sequence:
+        type: string
+    minutes:
+      type: integer
+      label: 'Minutes counted over'
+
+klaxon.alert_type.system_queue:
+  type: klaxon.alert_type_scheduled
+  label: 'Queue backlog alert'
+  mapping:
+    queues:
+      type: sequence
+      label: 'Queues'
+      sequence:
+        type: string
+    limit:
+      type: integer
+      label: 'Items before a queue counts as behind'
