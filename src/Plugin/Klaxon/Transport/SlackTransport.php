@@ -77,7 +77,7 @@ class SlackTransport extends HttpTransportBase {
       'text' => $this->trim($message->subject, 3000),
       'attachments' => [
         [
-          'color' => '#' . $this->colour($message->severity),
+          'color' => '#' . $this->color($message->severity),
           'blocks' => $this->blocks($message),
         ],
       ],

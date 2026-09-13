@@ -44,7 +44,7 @@ class ChatTransportTest extends KernelTestBase {
   protected array $history = [];
 
   /**
-   * Slack gets a header, a body, its facts and a severity colour.
+   * Slack gets a header, a body, its facts and a severity color.
    */
   public function testSlackPayload(): void {
     $transport = $this->transport(SlackTransport::class, 'slack', ['webhook_url' => 'https://hooks.slack.com/services/T/B/x']);
@@ -58,7 +58,7 @@ class ChatTransportTest extends KernelTestBase {
     $this->assertSame('header', $blocks[0]['type']);
     $this->assertSame('Something broke', $blocks[0]['text']['text']);
     $this->assertSame('Six of them, at once.', $blocks[1]['text']['text']);
-    $this->assertSame("*Server*\nsrv-1", $blocks[2]['fields'][0]['text'], 'A real newline, not a literal backslash-n.');
+    $this->assertSame("*Server*\nweb-1", $blocks[2]['fields'][0]['text'], 'A real newline, not a literal backslash-n.');
   }
 
   /**
@@ -95,7 +95,7 @@ class ChatTransportTest extends KernelTestBase {
     $this->assertSame('-100999', $payload['chat_id']);
     $this->assertSame('HTML', $payload['parse_mode']);
     $this->assertStringContainsString('<b>Something broke</b>', $payload['text']);
-    $this->assertStringContainsString('<b>Server:</b> srv-1', $payload['text']);
+    $this->assertStringContainsString('<b>Server:</b> web-1', $payload['text']);
     $this->assertStringContainsString('&lt;script&gt;', $payload['text'], 'Angle brackets in a fact cannot break the markup.');
   }
 
@@ -119,7 +119,7 @@ class ChatTransportTest extends KernelTestBase {
   }
 
   /**
-   * Discord gets an embed, with the colour as an integer.
+   * Discord gets an embed, with the color as an integer.
    */
   public function testDiscordPayload(): void {
     $transport = $this->transport(DiscordTransport::class, 'discord', [
@@ -136,7 +136,7 @@ class ChatTransportTest extends KernelTestBase {
     $this->assertSame('Something broke', $embed['title']);
     $this->assertSame(0xd72b3f, $embed['color']);
     $this->assertSame('Server', $embed['fields'][0]['name']);
-    $this->assertSame('srv-1', $embed['fields'][0]['value']);
+    $this->assertSame('web-1', $embed['fields'][0]['value']);
   }
 
   /**
@@ -175,7 +175,7 @@ class ChatTransportTest extends KernelTestBase {
 
     $this->assertSame('Something broke', $payload['subject']);
     $this->assertSame('critical', $payload['severity']);
-    $this->assertSame(['Server' => 'srv-1', 'Detail' => '<script>'], $payload['facts']);
+    $this->assertSame(['Server' => 'web-1', 'Detail' => '<script>'], $payload['facts']);
     $this->assertNull($payload['url']);
     $this->assertNotEmpty($payload['sent']);
   }
@@ -203,7 +203,7 @@ class ChatTransportTest extends KernelTestBase {
   public function testWebhookSignsWhatItSends(): void {
     $transport = $this->transport(WebhookTransport::class, 'webhook', [
       'url' => 'https://ops.example.com/hook',
-      'secret' => 'shhh',
+      'secret' => 'a-signing-secret',
     ], new Response(202));
 
     $transport->send($this->message());
@@ -214,7 +214,7 @@ class ChatTransportTest extends KernelTestBase {
 
     $this->assertNotSame('', $timestamp);
     $this->assertSame(
-      hash_hmac('sha256', $timestamp . '.' . (string) $request->getBody(), 'shhh'),
+      hash_hmac('sha256', $timestamp . '.' . (string) $request->getBody(), 'a-signing-secret'),
       $signature,
       'A receiver recomputing this over the body it got must agree.',
     );
@@ -300,7 +300,7 @@ class ChatTransportTest extends KernelTestBase {
   }
 
   /**
-   * An unconfigured channel fails permanently rather than calling nowhere.
+   * A channel with no credentials fails permanently rather than calling out.
    */
   public function testMissingCredentialsFailWithoutAnyRequest(): void {
     foreach ([
@@ -343,7 +343,7 @@ class ChatTransportTest extends KernelTestBase {
     return new Message(
       'Something broke',
       'Six of them, at once.',
-      ['Server' => 'srv-1', 'Detail' => '<script>'],
+      ['Server' => 'web-1', 'Detail' => '<script>'],
       Message::SEVERITY_CRITICAL,
     );
   }

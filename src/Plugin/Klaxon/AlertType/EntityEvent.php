@@ -25,7 +25,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * Deliberately generic. "An order was cancelled" is this watching a state
  * field for a new value, which is the same shape as "a backup record failed"
- * or "a lot went unsold", so none of those needs its own plugin.
+ * or "a subscription lapsed", so none of those needs its own plugin.
  *
  * The entity that changed becomes the message: one row, with its label and a
  * link. Anything needing more than that wants its own alert type.
@@ -104,7 +104,7 @@ class EntityEvent extends AlertTypeBase implements EntityEventAlertInterface, Co
     $form['bundles_wrapper'] = $this->bundlesElement('bundles', [
       'widget' => 'checkboxes',
       'title' => $this->t('Limited to types'),
-      'description' => $this->t('Leave everything unticked for every type.'),
+      'description' => $this->t('Leave them all clear for every type.'),
       'default' => (array) ($this->configuration['bundles'] ?? []),
       'fallback' => (string) ($this->configuration['entity_type'] ?? ''),
     ]);

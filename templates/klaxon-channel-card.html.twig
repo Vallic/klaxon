@@ -1,0 +1,30 @@
+{#
+/**
+ * @file
+ * One channel, and every alert that will be sent down it.
+ */
+#}
+<div class="klaxon-card{{ enabled ? '' : ' klaxon-card--off' }}">
+  <div class="klaxon-card__head">
+    <h3 class="klaxon-card__title">{{ label }}</h3>
+    <span class="klaxon-card__transport">{{ transport }}</span>
+    {% if edit_url %}
+      <a class="klaxon-card__edit" href="{{ edit_url }}">{{ 'Edit'|t }}</a>
+    {% endif %}
+  </div>
+
+  {% if alerts %}
+    <ul class="klaxon-card__alerts">
+      {% for alert in alerts %}
+        <li class="klaxon-alert{{ alert.enabled ? '' : ' klaxon-alert--off' }}">
+          <a class="klaxon-alert__name" href="{{ alert.url }}">{{ alert.label }}</a>
+          <span class="klaxon-alert__kind">{{ alert.kind }}</span>
+          <span class="klaxon-alert__severity klaxon-alert__severity--{{ alert.severity }}">{{ alert.severity }}</span>
+          {% if not alert.enabled %}<span class="klaxon-alert__tag">{{ 'disabled'|t }}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="klaxon-card__empty">{{ 'Nothing sends here. The channel works; no alert has been pointed at it.'|t }}</p>
+  {% endif %}
+</div>

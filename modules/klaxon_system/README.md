@@ -20,7 +20,7 @@ Catching that needs something outside the site, watching the site.
 
 What it does catch is the failure that happens more often and is far harder to
 notice: cron that runs but never finishes. Drupal stamps `system.cron_last` at
-the *end* of a successful run, so a hook that fatals halfway leaves that
+the *end* of a successful run, so a hook that dies halfway leaves that
 timestamp standing still while cron appears, from the outside, to be firing
 perfectly happily. It also catches cron running far less often than whoever set
 it up believes. Set the threshold comfortably above the intended interval: on

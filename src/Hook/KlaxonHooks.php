@@ -69,6 +69,25 @@ class KlaxonHooks {
   }
 
   /**
+   * Implements hook_theme().
+   */
+  #[Hook('theme')]
+  public function theme(): array {
+    return [
+      'klaxon_firing' => ['variables' => ['rows' => []]],
+      'klaxon_channel_card' => [
+        'variables' => [
+          'label' => '',
+          'transport' => '',
+          'enabled' => TRUE,
+          'edit_url' => '',
+          'alerts' => [],
+        ],
+      ],
+    ];
+  }
+
+  /**
    * Implements hook_mail().
    */
   #[Hook('mail')]

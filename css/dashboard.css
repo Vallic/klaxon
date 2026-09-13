@@ -1,0 +1,194 @@
+/**
+ * @file
+ * The Klaxon dashboard.
+ */
+
+.klaxon-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.klaxon-summary li {
+  display: flex;
+  flex-direction: column;
+  min-width: 7rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d3d4d9;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.klaxon-summary__value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.klaxon-summary__label {
+  color: #55565b;
+  font-size: 0.85rem;
+}
+
+.klaxon-warnings {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border-left: 4px solid #e29700;
+  background: #fdf8ed;
+}
+
+.klaxon-firing {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #d72b3f;
+  background: #fdf1f2;
+}
+
+.klaxon-firing__title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.klaxon-firing__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.klaxon-firing__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.klaxon-firing__name {
+  font-weight: 700;
+}
+
+.klaxon-firing__summary,
+.klaxon-firing__since {
+  color: #55565b;
+  font-size: 0.85rem;
+}
+
+.klaxon-channels {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  margin-bottom: 2rem;
+}
+
+.klaxon-card {
+  padding: 1rem;
+  border: 1px solid #d3d4d9;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.klaxon-card--off {
+  opacity: 0.65;
+}
+
+.klaxon-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #ededf0;
+}
+
+.klaxon-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.klaxon-card__transport {
+  color: #55565b;
+  font-size: 0.8rem;
+}
+
+.klaxon-card__edit {
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+.klaxon-card__alerts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.klaxon-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #f4f4f7;
+}
+
+.klaxon-alert:last-child {
+  border-bottom: 0;
+}
+
+.klaxon-alert--off {
+  opacity: 0.6;
+}
+
+.klaxon-alert__name {
+  flex: 1 1 45%;
+}
+
+.klaxon-alert__kind {
+  color: #55565b;
+  font-size: 0.8rem;
+}
+
+.klaxon-alert__severity {
+  padding: 0.05rem 0.35rem;
+  text-transform: uppercase;
+  color: #003ecc;
+  border-radius: 3px;
+  background: #edf5ff;
+  font-size: 0.7rem;
+}
+
+.klaxon-alert__severity--warning {
+  color: #8a4b00;
+  background: #fdf3e5;
+}
+
+.klaxon-alert__severity--critical {
+  color: #a51b2b;
+  background: #fdf1f2;
+}
+
+.klaxon-alert__tag {
+  color: #55565b;
+  font-size: 0.75rem;
+}
+
+.klaxon-card__empty {
+  margin: 0;
+  color: #55565b;
+}
+
+.klaxon-state-table .klaxon-state--firing {
+  color: #a51b2b;
+  font-weight: 700;
+}
+
+.klaxon-state-table .klaxon-state--quiet {
+  color: #55565b;
+}
+
+.klaxon-state-table .klaxon-row--off {
+  opacity: 0.6;
+}

@@ -4,4 +4,4 @@ klaxon.transport.failing:
   mapping:
     mode:
       type: string
-      label: 'Behaviour'
+      label: 'Behavior'

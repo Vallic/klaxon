@@ -123,7 +123,7 @@ class DiscordTransport extends HttpTransportBase {
   protected function embed(Message $message): array {
     $embed = [
       'title' => $this->trim($message->subject, self::MAX_TITLE),
-      'color' => (int) hexdec($this->colour($message->severity)),
+      'color' => (int) hexdec($this->color($message->severity)),
       'timestamp' => gmdate('c'),
     ];
 

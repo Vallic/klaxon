@@ -1,0 +1,19 @@
+{#
+/**
+ * @file
+ * What is wrong right now, above everything else on the page.
+ */
+#}
+<div class="klaxon-firing">
+  <h3 class="klaxon-firing__title">{{ 'Firing now'|t }}</h3>
+
+  <ul class="klaxon-firing__list">
+    {% for row in rows %}
+      <li class="klaxon-firing__item klaxon-firing__item--{{ row.severity }}">
+        <a class="klaxon-firing__name" href="{{ row.url }}">{{ row.label }}</a>
+        <span class="klaxon-firing__summary">{{ row.summary }}</span>
+        <span class="klaxon-firing__since">{{ 'since @when'|t({'@when': row.since}) }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+</div>

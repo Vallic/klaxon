@@ -1,3 +1,9 @@
+klaxon.dashboard:
+  title: 'Dashboard'
+  route_name: klaxon.admin
+  base_route: klaxon.admin
+  weight: -10
+
 entity.klaxon_alert.collection:
   title: 'Alerts'
   route_name: entity.klaxon_alert.collection

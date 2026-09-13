@@ -11,8 +11,8 @@ use Drupal\Core\Cache\CacheableMetadata;
  *
  * Rows are keyed by a stable identifier, such as an entity id or a queue name,
  * so an alert can remember which rows it has already reported. Without that
- * key an alert that fires once per matching row, "this auction ends within the
- * hour" being the obvious case, repeats itself on every evaluation.
+ * key an alert that fires once per matching row, "this subscription renews
+ * within the hour" being the obvious case, repeats itself on every evaluation.
  */
 final class Reading {
 

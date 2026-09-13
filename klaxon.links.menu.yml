@@ -4,6 +4,13 @@ klaxon.admin:
   parent: system.admin_config_system
   route_name: klaxon.admin
 
+klaxon.admin.dashboard:
+  title: 'Dashboard'
+  description: 'What is firing, who gets told, and what is about to say nothing.'
+  parent: klaxon.admin
+  route_name: klaxon.admin
+  weight: -10
+
 entity.klaxon_alert.collection:
   title: 'Alerts'
   description: 'One thing worth knowing about, and where to say it.'

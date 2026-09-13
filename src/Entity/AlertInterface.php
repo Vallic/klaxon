@@ -58,8 +58,8 @@ interface AlertInterface extends ConfigEntityInterface {
   /**
    * TRUE when this alert reports each matching row at most once, ever.
    *
-   * An auction ending within the hour must be announced once, not on every
-   * cron run for the rest of that hour. With this on, rows already recorded in
+   * A subscription renewing within the hour must be announced once, not on
+   * every cron run for the rest of that hour. With this on, rows already recorded in
    * the ledger are dropped before the condition is evaluated.
    */
   public function isPerRow(): bool;

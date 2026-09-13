@@ -54,7 +54,7 @@ class DeliveryTest extends KernelTestBase {
   /**
    * A job survives a queue backend that does not keep PHP objects.
    *
-   * The core database queue serialises, so objects come back as objects and
+   * The core database queue serializes, so objects come back as objects and
    * this is easy to get wrong without noticing. RabbitMQ and several other
    * backends encode as JSON, and anything that only works with the first kind
    * is an alert silently discarded on sites running the second.

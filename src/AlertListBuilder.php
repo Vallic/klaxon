@@ -11,7 +11,7 @@ use Drupal\Core\Url;
 use Drupal\klaxon\Entity\AlertInterface;
 
 /**
- * Lists the alerts, each summarised by what it is and what it watches.
+ * Lists the alerts, each summarized by what it is and what it watches.
  */
 class AlertListBuilder extends ConfigEntityListBuilder {
 

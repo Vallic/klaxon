@@ -46,9 +46,9 @@ final class Message {
    * The message as plain data, for anything that cannot carry an object.
    *
    * A queue backend is under no obligation to preserve PHP objects. The core
-   * database queue serialises and they survive; RabbitMQ and several others
+   * database queue serializes and they survive; RabbitMQ and several others
    * encode as JSON and they do not, coming back as bare arrays. A message is
-   * only ever scalars, so travelling as scalars costs nothing and works
+   * only ever scalars, so traveling as scalars costs nothing and works
    * everywhere.
    */
   public function toArray(): array {

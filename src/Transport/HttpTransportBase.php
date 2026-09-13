@@ -200,9 +200,9 @@ abstract class HttpTransportBase extends TransportBase implements ContainerFacto
   }
 
   /**
-   * The severity colour, as six hex digits without a leading hash.
+   * The severity color, as six hex digits without a leading hash.
    */
-  protected function colour(string $severity): string {
+  protected function color(string $severity): string {
     return match ($severity) {
       Message::SEVERITY_CRITICAL => 'd72b3f',
       Message::SEVERITY_WARNING => 'e5a000',

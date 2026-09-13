@@ -49,7 +49,7 @@ class ChannelForm extends EntityForm {
       '#title' => $this->t('Name'),
       '#default_value' => $channel->label(),
       '#required' => TRUE,
-      '#description' => $this->t('What the people picking this channel will recognise, such as %example.', ['%example' => 'Ops chat']),
+      '#description' => $this->t('What the people picking this channel will recognize, such as %example.', ['%example' => 'Ops chat']),
     ];
 
     $form['id'] = [

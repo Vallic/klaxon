@@ -51,7 +51,7 @@ class TelegramTransport extends HttpTransportBase {
       '#title' => $this->t('Bot token'),
       '#default_value' => $this->configuration['token'] ?? '',
       '#required' => TRUE,
-      '#placeholder' => '123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      '#placeholder' => '123456789:AAExampleTokenFromBotFather',
       '#description' => $this->t('From BotFather. This is a credential and it is stored in configuration; set it in settings.php to keep it out of an exported site: <code>@override</code>', [
         '@override' => "\$config['klaxon.channel.CHANNEL_ID']['transport']['token'] = getenv('TELEGRAM_TOKEN');",
       ]),

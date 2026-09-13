@@ -25,7 +25,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * What it does catch is the failure that actually happens more often and is
  * far harder to notice: cron that runs but never finishes. Drupal stamps
- * `system.cron_last` at the end of a successful run, so a hook that fatals
+ * `system.cron_last` at the end of a successful run, so a hook that dies
  * halfway leaves that timestamp standing still while cron appears, from the
  * outside, to be firing perfectly happily. It also catches cron running far
  * less often than whoever set it up believes.
@@ -144,7 +144,7 @@ class CronLag extends ScheduledAlertBase implements ContainerFactoryPluginInterf
     return Reading::scalar($now - $last, [
       // An explicit format rather than a named one. Named formats are config
       // entities that a minimal site may not have, and an ops message wants
-      // an unambiguous timestamp more than a localised one.
+      // an unambiguous timestamp more than a localized one.
       'Last finished run' => $this->dateFormatter->format($last, 'custom', 'Y-m-d H:i T'),
       'Behind by' => $this->dateFormatter->formatInterval($now - $last, 2),
     ]);

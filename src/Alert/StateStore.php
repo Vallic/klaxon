@@ -12,7 +12,7 @@ use Drupal\Core\Database\Connection;
  * Two things are recorded. Per alert: when it ran, what it measured and
  * whether it is currently firing, which is what makes "tell me when it starts,
  * not every ten minutes" possible. Per row: which individual rows have already
- * been reported, which is what makes "announce each auction once" possible.
+ * been reported, which is what makes "announce each one once" possible.
  */
 class StateStore {
 

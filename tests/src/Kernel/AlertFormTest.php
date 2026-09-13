@@ -80,8 +80,8 @@ class AlertFormTest extends KernelTestBase {
     EntityTestHelper::createBundle('article', 'Article', 'entity_test');
 
     $this->submitForm([
-      'label' => 'No signups today',
-      'id' => 'quiet_signups',
+      'label' => 'No new accounts today',
+      'id' => 'quiet_accounts',
       'type_id' => 'entity_query',
       'type_settings' => [
         'schedule' => ['interval' => 600, 'cron' => ''],
@@ -103,7 +103,7 @@ class AlertFormTest extends KernelTestBase {
       'cooldown' => 1800,
     ]);
 
-    $alert = Alert::load('quiet_signups');
+    $alert = Alert::load('quiet_accounts');
 
     $this->assertNotNull($alert, 'The alert was created.');
     $this->assertSame('entity_query', $alert->getTypeId());

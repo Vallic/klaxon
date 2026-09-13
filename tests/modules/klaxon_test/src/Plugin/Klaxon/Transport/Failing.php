@@ -67,7 +67,7 @@ class Failing extends TransportBase implements ContainerFactoryPluginInterface {
   public function buildConfigurationForm(array $form, FormStateInterface $form_state): array {
     $form['mode'] = [
       '#type' => 'select',
-      '#title' => $this->t('Behaviour'),
+      '#title' => $this->t('Behavior'),
       '#options' => [
         'ok' => $this->t('Deliver'),
         'transient' => $this->t('Fail, retryable'),

@@ -1,5 +1,7 @@
 # Klaxon
 
+![Klaxon](https://www.drupal.org/files/project-images/klaxon.png)
+
 Build a business alert in the UI: pick what to watch, and where to shout about
 it.
 
@@ -43,7 +45,8 @@ Enable a submodule alongside it for ready-made alerts:
 
 ## Configuration
 
-Everything lives under Configuration, in the Klaxon section.
+Everything lives under Configuration, in the Klaxon section, across four
+tabs: **Dashboard**, **Alerts**, **Channels** and **Settings**.
 
 1. Add a **channel** first. An alert with nowhere to go still runs and still
    records its state, it just says nothing.
@@ -56,6 +59,27 @@ Everything lives under Configuration, in the Klaxon section.
 Every alert row has a **Run now** operation. It evaluates immediately and tells
 you whether it fired, which is the fastest way to find out that a window is
 wrong or a threshold never trips.
+
+### The Dashboard
+
+The lists answer "what alerts exist" and "what channels exist". The dashboard
+answers the two questions neither does: is anything wrong right now, and if
+something goes wrong later, will anybody actually hear about it.
+
+It leads with what is **firing**, then with what is **worth fixing** — and the
+first thing in that list is the delivery queue, because a queue nothing is
+draining silences every alert on the site while each of them still looks
+perfectly well configured. After that come the quiet failures: an alert with no
+channel, an alert pointing at a channel that is switched off or gone.
+
+Then the **routing**: one card per channel showing every alert that will be
+sent down it, and a card called *Nowhere* for the alerts pointing at nothing,
+because those are the ones this page exists to catch.
+
+Last, **every alert and what it last did** — its kind, whether it is firing,
+when it was last checked, when it last fired, how many times, and a Run now
+link. The same information `drush klaxon:list` prints, for the people who do
+not have a terminal open.
 
 
 ## Concepts
@@ -98,9 +122,9 @@ URL, which core's HTTP client already does.
 
 | Transport | Wants | Notes |
 |---|---|---|
-| `slack` | An incoming webhook URL | A webhook URL already names its channel, so one Klaxon channel maps to one Slack channel. Severity becomes the colour stripe. |
+| `slack` | An incoming webhook URL | A webhook URL already names its channel, so one Klaxon channel maps to one Slack channel. Severity becomes the color stripe. |
 | `telegram` | A bot token and a chat ID | The bot must be in the chat, and an administrator of it if it is a channel. |
-| `discord` | A channel webhook URL | Severity becomes the embed colour. |
+| `discord` | A channel webhook URL | Severity becomes the embed color. |
 | `mail` | Addresses | One mail each, so a bad address cannot take the list down with it. |
 | `webhook` | A URL, and headers | Anything else with an HTTP endpoint. |
 | `log` | Nothing | The right channel to add while you are still deciding whether an alert fires too often. |
@@ -126,7 +150,7 @@ Anything that needs a payload shaped its own way wants its own transport, which
 is about thirty lines on top of `HttpTransportBase`: build the payload, and
 override `failure()` if the service hides its rate limit somewhere new. Two of
 the three shipped ones do. Give it a `category` and the channel form groups it
-with its neighbours, the same way alert types are grouped.
+with its neighbors, the same way alert types are grouped.
 
 ## Running it
 
@@ -167,7 +191,7 @@ implements, which is what keeps the form down to one question:
 ## The blank for developers
 
 Not everything worth alerting on can be described in a form. The **code** alert
-type hands control back without giving up templating, cooldowns, channels and
+type hands control back without giving up templating, the cooldown, channels
 the admin UI. Nothing evaluates it: cron skips it and no entity change reaches
 it. It is a configured message with a destination, aimed by code:
 
@@ -203,8 +227,8 @@ nobody writes, because the logic reads backwards.
 
 **Report each row once.** Turn on `per_row` and the alert remembers which rows
 it has already reported, in a ledger keyed by whatever identifier the reading
-gave them. "This auction ends within the hour" then announces each auction once
-rather than on every cron run for the rest of that hour.
+gave them. "This subscription renews within the hour" then announces each one
+once rather than on every cron run for the rest of that hour.
 
 **Say it once, not every ten minutes.** `notify_on` takes `every`, `change` or
 `change_and_recovery`. Combined with `cooldown`, that is what stops a threshold
@@ -227,7 +251,7 @@ having a bad afternoon, and retries come for free. The Run now button delivers
 inline, because someone is watching.
 
 Jobs travel as plain data, never as objects. A queue backend is under no
-obligation to preserve PHP objects: the core database queue serialises and they
+obligation to preserve PHP objects: the core database queue serializes and they
 survive, while RabbitMQ and several others encode as JSON and they do not. A
 message is only ever scalars, so this costs nothing and works everywhere.
 
@@ -279,13 +303,26 @@ nothing to do with entities — a schedule and a threshold. See
 
 - **A content submodule**: unpublished past its date, moderation stuck.
 - **Microsoft Teams**, which wants an Adaptive Card rather than anything the
-  other three would recognise.
+  other three would recognize.
 - **Key module support**, so credentials can come from somewhere that is not
   configuration at all.
 - **The Views alert type**, for anything needing joins or relationships.
 - **The SQL alert type**, gated behind a read-only database connection, a
   restricted permission, and a setting that makes production accept only what
   arrived through config import.
+
+
+## Related projects
+
+**[Druker](https://www.drupal.org/project/druker)** schedules Drush commands
+from a process outside the site, and it closes a real gap here. Klaxon
+evaluates its scheduled alerts on cron, which means a cron run that stops
+takes the alerting down with it — silently, and including the alert that would
+have told you cron had stopped. Give `klaxon:due` and `klaxon:deliver` a Druker
+job and they keep speaking when `drush cron` does not.
+
+That is the honest limit of the `system_cron` alert in Klaxon System: nothing
+evaluated by cron can report that cron is dead. Something outside it has to.
 
 
 ## Maintainers

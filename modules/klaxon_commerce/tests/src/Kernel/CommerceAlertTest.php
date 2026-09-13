@@ -6,6 +6,7 @@ namespace Drupal\Tests\klaxon_commerce\Kernel;
 
 use Drupal\Tests\commerce_order\Kernel\OrderKernelTestBase;
 use Drupal\commerce_order\Entity\Order;
+use Drupal\commerce_order\Entity\OrderItem;
 use Drupal\commerce_order\Entity\OrderType;
 use Drupal\commerce_price\Price;
 use Drupal\klaxon\Alert\Deliverer;
@@ -241,13 +242,11 @@ class CommerceAlertTest extends OrderKernelTestBase {
     // The total is recalculated from the items on every save, so it has to be
     // made of items rather than written directly.
     if (!$empty) {
-      $order_item = $this->container->get('entity_type.manager')
-        ->getStorage('commerce_order_item')
-        ->create([
-          'type' => 'test',
-          'quantity' => 1,
-          'unit_price' => $total,
-        ]);
+      $order_item = OrderItem::create([
+        'type' => 'test',
+        'quantity' => 1,
+        'unit_price' => $total,
+      ]);
       $order_item->save();
       $order->addItem($order_item);
     }

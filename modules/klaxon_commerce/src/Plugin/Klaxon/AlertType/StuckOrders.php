@@ -13,7 +13,7 @@ use Drupal\klaxon_commerce\OrderAlertBase;
  * Orders that have sat in one state for too long.
  *
  * Every shop has a state orders are not supposed to rest in — awaiting
- * validation, on hold, authorised but never captured — and no shop notices
+ * validation, on hold, authorized but never captured — and no shop notices
  * when they do, because nothing looks broken. The order is fine. It is just
  * not moving.
  *

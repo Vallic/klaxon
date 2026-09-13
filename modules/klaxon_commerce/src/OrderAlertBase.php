@@ -138,7 +138,7 @@ abstract class OrderAlertBase extends EntityQuery {
       '#title' => $this->t('Order types'),
       '#options' => $this->orderTypeOptions(),
       '#default_value' => (array) ($this->configuration['order_types'] ?? []),
-      '#description' => $this->t('Leave everything unticked for all of them.'),
+      '#description' => $this->t('Leave them all clear for all of them.'),
     ];
 
     $form['states'] = [

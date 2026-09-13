@@ -195,7 +195,7 @@ abstract class ScheduledAlertBase extends AlertTypeBase implements ScheduledAler
         return $next <= $now;
       }
       catch (\Throwable) {
-        // An unparseable expression falls back to the interval rather than
+        // An expression that will not parse falls back to the interval
         // silently never running.
       }
     }

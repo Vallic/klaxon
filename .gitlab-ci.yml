@@ -1,0 +1,39 @@
+################
+# DrupalCI GitLabCI template
+#
+# Gitlab-ci.yml to replicate DrupalCI testing for Contrib.
+#
+# The includes are maintained centrally by the Drupal Association, so this
+# file stays short and keeps up with core development on its own.
+# https://project.pages.drupalcode.org/gitlab_templates/
+################
+
+include:
+  - project: $_GITLAB_TEMPLATES_REPO
+    ref: $_GITLAB_TEMPLATES_REF
+    file:
+      - '/includes/include.drupalci.main.yml'
+      - '/includes/include.drupalci.variables.yml'
+      - '/includes/include.drupalci.workflows.yml'
+
+variables:
+  _SHOW_ENVIRONMENT_VARIABLES: 1
+
+  ################
+  # What to test against.
+  #
+  # Klaxon is Drupal 11.4 and later, so there is no previous major to opt
+  # into. The next minor and the newest PHP are worth knowing about early:
+  # both break quietly, and both break here rather than on somebody's site.
+  ################
+  OPT_IN_TEST_NEXT_MINOR: 1
+  OPT_IN_TEST_MAX_PHP: 1
+
+  ################
+  # Twig CS Fixer reads core/.twig-cs-fixer.php, which only exists in Drupal
+  # 11.5 and later, and hard-fails without it. Remove this line once the
+  # stable core the templates target has caught up.
+  ################
+  SKIP_TWIG_CS_FIXER: '1'
+
+  _CSPELL_WORDS: 'druker, endfor, getenv, klaxon, strtotime, Međimorec, Tfor, valic'

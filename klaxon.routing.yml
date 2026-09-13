@@ -1,7 +1,7 @@
 klaxon.admin:
   path: '/admin/config/system/klaxon'
   defaults:
-    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _controller: '\Drupal\klaxon\Controller\Dashboard::build'
     _title: 'Klaxon'
   requirements:
     _permission: 'administer klaxon alerts+administer klaxon channels'

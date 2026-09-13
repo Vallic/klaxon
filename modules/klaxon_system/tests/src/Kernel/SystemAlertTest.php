@@ -144,7 +144,7 @@ class SystemAlertTest extends KernelTestBase {
       'uid' => 0,
       'type' => 'php',
       'message' => 'Gateway %name refused the payment: @reason.',
-      'variables' => serialize(['%name' => 'Adyen', '@reason' => 'timeout']),
+      'variables' => serialize(['%name' => 'Example', '@reason' => 'timeout']),
       'severity' => RfcLogLevel::ERROR,
       'link' => '',
       'location' => 'http://example.com',
@@ -162,7 +162,7 @@ class SystemAlertTest extends KernelTestBase {
     ]);
 
     $this->assertSame(
-      'Gateway Adyen refused the payment: timeout.',
+      'Gateway Example refused the payment: timeout.',
       $this->reading('errors')->context['Most recent'],
       'Placeholders filled in, and the markup a %placeholder adds taken back out.',
     );

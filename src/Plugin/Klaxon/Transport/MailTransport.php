@@ -115,7 +115,7 @@ class MailTransport extends TransportBase implements ContainerFactoryPluginInter
    * The addresses this channel sends to.
    *
    * @return string[]
-   *   Valid addresses only. Anything unparseable is dropped rather than sent.
+   *   Valid addresses only. Anything that will not parse is dropped.
    */
   protected function recipients(): array {
     $raw = preg_split('/[\s,;]+/', (string) ($this->configuration['recipients'] ?? '')) ?: [];

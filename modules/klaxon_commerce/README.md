@@ -44,8 +44,8 @@ abandonment, so they are excluded.
 
 **States come from the workflows on the site.** A stock Commerce install has
 draft, completed and canceled. A real shop has a dozen states nobody else has
-heard of — `pending_adyen_capture`, `canceled_high_risk`, `approve_verify` — and
-an alert that only knew the stock three would be useless there. The state list is
+heard of — `awaiting_capture`, `held_for_review`, `part_shipped` — and an alert
+that only knew the stock three would be useless there. The state list is
 read from every `commerce_order` workflow and grouped by the workflow that
 defines it.
 
@@ -81,7 +81,7 @@ class BigRefunds extends OrderAlertBase {
 
 ## Not built yet
 
-- **Payments.** Refunds over an amount, and authorisations that were never
+- **Payments.** Refunds over an amount, and authorizations that were never
   captured. Both want `commerce_payment` rather than `commerce_order`, so they
   need a base of their own rather than extending `OrderAlertBase`.
 - **Stock**, once there is a stock module worth depending on.
