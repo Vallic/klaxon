@@ -80,6 +80,12 @@ class ChannelForm extends EntityForm {
         'callback' => '::updateSettings',
         'wrapper' => self::WRAPPER_ID,
       ],
+      // Changing the picker must not validate the rest of the form. Without
+      // this, choosing a transport runs that transport's own validation
+      // against a form the user has not filled in yet - and against the
+      // settings subform of the transport they are switching away from,
+      // which does not have the elements it reaches for.
+      '#limit_validation_errors' => [],
     ];
 
     // Everything the chosen transport contributes is replaced together when
@@ -115,7 +121,9 @@ class ChannelForm extends EntityForm {
     $built = $this->transportPlugin($form_state)
       ->buildConfigurationForm($form['chosen']['transport_settings'], $subform_state);
 
+    // Stamped with the transport it was built for; see validateForm().
     $form['chosen']['transport_settings'] = $built + $wrapper;
+    $form['chosen']['transport_settings']['#klaxon_transport'] = $this->transportPlugin($form_state)->getPluginId();
 
     return $form;
   }
@@ -147,9 +155,18 @@ class ChannelForm extends EntityForm {
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     parent::validateForm($form, $form_state);
 
+    $plugin = $this->transportPlugin($form_state);
+
+    // The settings subform belongs to whichever transport was selected when
+    // the form was built. On the request that changes the select those
+    // disagree, so leave validation to the rebuilt form.
+    if (($form['chosen']['transport_settings']['#klaxon_transport'] ?? NULL) !== $plugin->getPluginId()) {
+      return;
+    }
+
     $settings = &$form['chosen']['transport_settings'];
     $subform_state = SubformState::createForSubform($settings, $form, $form_state);
-    $this->transportPlugin($form_state)->validateConfigurationForm($settings, $subform_state);
+    $plugin->validateConfigurationForm($settings, $subform_state);
   }
 
   /**

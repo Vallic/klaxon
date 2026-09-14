@@ -193,6 +193,12 @@ class AlertForm extends EntityForm {
         'callback' => '::updateSettings',
         'wrapper' => self::WRAPPER_ID,
       ],
+      // Changing the picker must not validate the rest of the form. Without
+      // this, choosing a type runs the chosen type's own validation against
+      // a form the user has not filled in yet - and against the settings
+      // subform of the type they are switching away from, which does not
+      // have the elements the new type's validation reaches for.
+      '#limit_validation_errors' => [],
     ];
 
     // Everything the chosen type contributes is replaced together when the
@@ -230,7 +236,11 @@ class AlertForm extends EntityForm {
     $built = $this->typePlugin($form_state)
       ->buildConfigurationForm($form['type']['chosen']['type_settings'], $subform_state);
 
+    // Stamped with the type it was built for. On the request that changes
+    // the select, the form being validated is still the previous type's,
+    // and running the new type's validation against it is meaningless.
     $form['type']['chosen']['type_settings'] = $built + $wrapper;
+    $form['type']['chosen']['type_settings']['#klaxon_type'] = $this->typePlugin($form_state)->getPluginId();
   }
 
   /**
@@ -253,9 +263,19 @@ class AlertForm extends EntityForm {
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     parent::validateForm($form, $form_state);
 
+    $plugin = $this->typePlugin($form_state);
+
+    // The settings subform belongs to whichever type was selected when the
+    // form was built. On the request that changes the select those disagree,
+    // and validating the new type against the old type's elements is both
+    // meaningless and a fatal - so leave it to the rebuilt form.
+    if (($form['type']['chosen']['type_settings']['#klaxon_type'] ?? NULL) !== $plugin->getPluginId()) {
+      return;
+    }
+
     $settings = &$form['type']['chosen']['type_settings'];
     $subform_state = SubformState::createForSubform($settings, $form, $form_state);
-    $this->typePlugin($form_state)->validateConfigurationForm($settings, $subform_state);
+    $plugin->validateConfigurationForm($settings, $subform_state);
   }
 
   /**
