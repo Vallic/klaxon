@@ -4,6 +4,13 @@ includes:
 parameters:
   level: 5
 
+  # Analyse at the floor composer.json declares, not at whatever the machine
+  # running this happens to have. Readonly promoted properties on a class
+  # whose parent uses DependencySerializationTrait are only legal from 8.4,
+  # and this module is 8.4 and later - so say so here rather than find out
+  # from a job running something older.
+  phpVersion: 80400
+
   fileExtensions:
     - php
     - module

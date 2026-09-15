@@ -12,7 +12,7 @@
     "license": "GPL-2.0-or-later",
     "homepage": "https://www.drupal.org/project/klaxon",
     "require": {
-        "php": ">=8.3",
+        "php": ">=8.4",
         "drupal/core": "^11.4",
         "dragonmantank/cron-expression": "^3.3"
     },

@@ -30,6 +30,14 @@ variables:
   OPT_IN_TEST_MAX_PHP: 1
 
   ################
+  # Klaxon is PHP 8.4 and later: readonly promoted properties on classes
+  # whose parent uses DependencySerializationTrait are only legal from 8.4,
+  # and composer.json says so. Without this the default job picks the oldest
+  # PHP the target core allows and `composer install` refuses to resolve.
+  ################
+  _TARGET_PHP: '8.4'
+
+  ################
   # Twig CS Fixer reads core/.twig-cs-fixer.php, which only exists in Drupal
   # 11.5 and later, and hard-fails without it. Remove this line once the
   # stable core the templates target has caught up.
