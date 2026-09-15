@@ -117,6 +117,12 @@ class Sales extends OrderAlertBase {
       '#required' => TRUE,
     ];
 
+    // Sharpened here rather than on the base: the base serves alerts that
+    // count orders, where "any state" is a reasonable default. This one adds
+    // money up, and a total that quietly includes the orders you cancelled
+    // is not a number anybody would want to quote.
+    $form['orders']['states']['#description'] = $this->t('Grouped by the workflow that defines them. <strong>Leaving this empty counts every placed order, cancelled and returned ones included</strong> — for a takings figure pick the states that mean the money was actually kept, usually the completed ones. Carts and drafts are already left out.');
+
     $form['fire']['#title'] = $this->t('When to say it');
     $form['fire']['operator']['#title'] = $this->t('Report the total when it');
     $form['fire']['operator']['#description'] = $this->t('Leave it at "is at least 0" for a plain daily digest. Set "is below" and a target to hear only about the bad days.');
