@@ -57,6 +57,63 @@ class CommerceAlertTest extends OrderKernelTestBase {
   }
 
   /**
+   * With no currency picked, each one is reported on its own line.
+   *
+   * Adding USD to EUR would be meaningless, so they are not added: the shop
+   * gets one row per currency instead of one wrong number, and the threshold
+   * is tested against the largest of them.
+   */
+  public function testSalesWithNoCurrencyGroupsByCurrency(): void {
+    $this->makeOrder('completed', new Price('40.00', 'USD'), placed: '-1 hour');
+    $this->makeOrder('completed', new Price('60.00', 'USD'), placed: '-2 hours');
+    $this->makeOrder('completed', new Price('500.00', 'EUR'), placed: '-1 hour');
+    // A cart is not a sale in any currency.
+    $this->makeOrder('draft', new Price('900.00', 'EUR'), placed: '-1 hour', cart: TRUE);
+
+    $this->makeAlert('takings', ['id' => 'commerce_sales', 'currency' => '']);
+    $reading = $this->reading('takings');
+
+    $totals = [];
+    foreach ($reading->rows as $row) {
+      $totals[$row['currency']] = $row['total'];
+    }
+
+    $this->assertSame(['EUR' => 500.0, 'USD' => 100.0], $totals, 'Each currency summed on its own.');
+    $this->assertSame(500.0, $reading->value, 'The measure is the largest, not the sum of both.');
+
+    // Biggest first, so a truncated chat message still leads with the one
+    // worth reading.
+    $this->assertSame('EUR', $reading->rows[0]['currency']);
+
+    $this->assertSame('2', $reading->context['Currencies'] ?? NULL, 'Two currencies, not four orders.');
+  }
+
+  /**
+   * Each currency is written the way that currency is written.
+   *
+   * The formatter trims a whole number to no decimals on its own, so the
+   * currency's own fraction digits are asked for - two for the euro, none
+   * for the yen, rather than two for everything.
+   */
+  public function testEachCurrencyIsFormattedItsOwnWay(): void {
+    $this->container->get('commerce_price.currency_importer')->import('JPY');
+
+    $this->makeOrder('completed', new Price('400.00', 'EUR'), placed: '-1 hour');
+    $this->makeOrder('completed', new Price('1234', 'JPY'), placed: '-1 hour');
+
+    $this->makeAlert('takings', ['id' => 'commerce_sales', 'currency' => '']);
+    $reading = $this->reading('takings');
+
+    $formatted = [];
+    foreach ($reading->rows as $row) {
+      $formatted[$row['currency']] = $row['formatted'];
+    }
+
+    $this->assertStringContainsString('400.00', $formatted['EUR'], 'Two decimals for the euro.');
+    $this->assertStringNotContainsString('.00', $formatted['JPY'], 'None for the yen.');
+  }
+
+  /**
    * The takings are summed in one currency and reported as money.
    */
   public function testSalesTotal(): void {

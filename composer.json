@@ -17,6 +17,7 @@
         "dragonmantank/cron-expression": "^3.3"
     },
     "require-dev": {
+        "drupal/advancedqueue": "^1.0",
         "drupal/commerce": "^3"
     }
 }
