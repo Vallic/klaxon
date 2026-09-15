@@ -1,0 +1,8 @@
+name: 'Klaxon Advanced Queue'
+type: module
+description: 'Alerts about Advanced Queue: jobs piling up, jobs failing, jobs stuck mid-flight.'
+package: Klaxon
+core_version_requirement: ^11.4
+dependencies:
+  - klaxon:klaxon
+  - advancedqueue:advancedqueue

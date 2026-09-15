@@ -80,12 +80,11 @@ class ChannelForm extends EntityForm {
         'callback' => '::updateSettings',
         'wrapper' => self::WRAPPER_ID,
       ],
-      // Changing the picker must not validate the rest of the form. Without
-      // this, choosing a transport runs that transport's own validation
-      // against a form the user has not filled in yet - and against the
-      // settings subform of the transport they are switching away from,
-      // which does not have the elements it reaches for.
-      '#limit_validation_errors' => [],
+      // Changing the picker must not validate the rest of the form, but it
+      // must keep its own value: an empty list prunes every submitted value,
+      // this element's included, and the rebuild could then no longer see
+      // which transport had just been chosen.
+      '#limit_validation_errors' => [['transport_id']],
     ];
 
     // Everything the chosen transport contributes is replaced together when
@@ -211,7 +210,14 @@ class ChannelForm extends EntityForm {
   protected function transportId(FormStateInterface $form_state): string {
     $selected = $form_state->getValue('transport_id');
 
-    if (is_string($selected) && $selected !== '') {
+    // On the request the select makes, the form is built before the values
+    // are assembled, so only the raw input knows what was just chosen. See
+    // AlertForm::typeId(), which had the same hole.
+    if (!is_string($selected) || $selected === '') {
+      $selected = $form_state->getUserInput()['transport_id'] ?? NULL;
+    }
+
+    if (is_string($selected) && $selected !== '' && $this->transportManager->hasDefinition($selected)) {
       return $selected;
     }
 

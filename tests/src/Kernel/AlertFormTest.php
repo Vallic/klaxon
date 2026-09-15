@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\Tests\klaxon\Kernel;
 
 use Drupal\Core\Form\FormState;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\entity_test\EntityTestHelper;
 use Drupal\klaxon\Entity\Alert;
@@ -216,6 +217,71 @@ class AlertFormTest extends KernelTestBase {
       $settings['entity_type']['#ajax']['wrapper'],
       'The select replaces the container next to it.',
     );
+  }
+
+  /**
+   * Choosing a different type rebuilds that type's settings, not the old ones.
+   *
+   * The select's AJAX request builds the form before the submitted values
+   * are assembled, so only the raw input knows what was just picked. Reading
+   * getValue() alone left the settings on whatever type was already there,
+   * and changing the picker looked like it did nothing at all.
+   */
+  public function testPickingTypeRebuildsItsOwnSettings(): void {
+    foreach (['entity_event', 'code', 'entity_query'] as $type) {
+      $form = $this->formAfterPicking($type);
+      $settings = $form['type']['chosen']['type_settings'];
+
+      $this->assertSame(
+        $type,
+        $settings['#klaxon_type'] ?? NULL,
+        sprintf('Picking %s builds %s settings.', $type, $type),
+      );
+    }
+  }
+
+  /**
+   * Changing the picker does not validate the rest of the form.
+   *
+   * It must still keep its own value though: limiting to nothing at all
+   * prunes every submitted value, this element's included, and the rebuild
+   * could then no longer see which type had just been chosen.
+   */
+  public function testChangingTheTypeValidatesNothingElse(): void {
+    $form = $this->formAfterPicking('entity_event');
+
+    $this->assertSame([['type_id']], $form['type']['type_id']['#limit_validation_errors']);
+    $this->assertSame([], $this->lastFormState->getErrors(), 'An empty form was not complained about.');
+  }
+
+  /**
+   * The form state from the last formAfterPicking() call.
+   */
+  protected FormStateInterface $lastFormState;
+
+  /**
+   * The form as the select's own AJAX request rebuilds it.
+   */
+  protected function formAfterPicking(string $type): array {
+    $form_object = $this->container->get('entity_type.manager')
+      ->getFormObject('klaxon_alert', 'add');
+    $form_object->setEntity($this->container->get('entity_type.manager')
+      ->getStorage('klaxon_alert')
+      ->create([]));
+
+    $form_state = new FormState();
+    $form_state->setProcessInput(TRUE);
+    $form_state->setUserInput([
+      'type_id' => $type,
+      '_triggering_element_name' => 'type_id',
+      'op' => '',
+    ]);
+    $form_state->addBuildInfo('args', []);
+
+    $form = $this->container->get('form_builder')->buildForm($form_object, $form_state);
+    $this->lastFormState = $form_state;
+
+    return $form;
   }
 
   /**

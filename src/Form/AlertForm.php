@@ -193,12 +193,15 @@ class AlertForm extends EntityForm {
         'callback' => '::updateSettings',
         'wrapper' => self::WRAPPER_ID,
       ],
-      // Changing the picker must not validate the rest of the form. Without
-      // this, choosing a type runs the chosen type's own validation against
-      // a form the user has not filled in yet - and against the settings
-      // subform of the type they are switching away from, which does not
-      // have the elements the new type's validation reaches for.
-      '#limit_validation_errors' => [],
+      // Changing the picker must not validate the rest of the form: choosing
+      // a type would otherwise run that type's own validation against a form
+      // nobody has filled in yet.
+      //
+      // Limited to the picker itself rather than to nothing. An empty list
+      // prunes every submitted value, this element's included, so the
+      // rebuild could no longer see which type had just been chosen and the
+      // settings never changed.
+      '#limit_validation_errors' => [['type_id']],
     ];
 
     // Everything the chosen type contributes is replaced together when the
@@ -332,7 +335,16 @@ class AlertForm extends EntityForm {
   protected function typeId(FormStateInterface $form_state): string {
     $submitted = $form_state->getValue('type_id');
 
-    if (is_string($submitted) && $submitted !== '') {
+    // On the request the select makes, the form is built before the values
+    // are assembled, so getValue() is still empty and only the raw input
+    // knows what was just chosen. Without this the settings subform was
+    // rebuilt for the type that was already there, and picking a different
+    // type appeared to do nothing at all.
+    if (!is_string($submitted) || $submitted === '') {
+      $submitted = $form_state->getUserInput()['type_id'] ?? NULL;
+    }
+
+    if (is_string($submitted) && $submitted !== '' && $this->alertTypeManager->hasDefinition($submitted)) {
       return $submitted;
     }
 

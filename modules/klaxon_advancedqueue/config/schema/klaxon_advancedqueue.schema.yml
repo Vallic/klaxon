@@ -1,0 +1,17 @@
+klaxon.alert_type.advancedqueue_jobs:
+  type: klaxon.alert_type_scheduled
+  label: 'Advanced Queue jobs alert'
+  mapping:
+    queues:
+      type: sequence
+      label: 'Queues'
+      sequence:
+        type: string
+    states:
+      type: sequence
+      label: 'Job states'
+      sequence:
+        type: string
+    limit:
+      type: integer
+      label: 'Jobs before a queue counts as over'

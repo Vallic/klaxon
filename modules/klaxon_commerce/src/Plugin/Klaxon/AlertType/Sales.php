@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Drupal\klaxon_commerce\Plugin\Klaxon\AlertType;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\commerce_price\Entity\CurrencyInterface;
+use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -139,38 +141,111 @@ class Sales extends OrderAlertBase {
   /**
    * {@inheritdoc}
    */
-  public function validateConfigurationForm(array &$form, FormStateInterface $form_state): void {
-    parent::validateConfigurationForm($form, $form_state);
-
-    $orders = (array) $form_state->getValue('orders');
-
-    if ((string) ($orders['currency'] ?? '') === '') {
-      $form_state->setError(
-        $form['orders']['currency'],
-        $this->t('Pick a currency. Adding up totals in different currencies produces a number that means nothing.'),
-      );
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function read(array $context = []): Reading {
-    $reading = parent::read($context);
     $currency = (string) ($this->configuration['currency'] ?? '');
 
+    // No currency picked means every currency, reported side by side. Adding
+    // them together would still be meaningless, so they are not added: the
+    // shop gets one line per currency and the threshold is tested against
+    // the largest of them, so "a day under 1000" fires when any one currency
+    // has a day under 1000 rather than never.
     if ($currency === '') {
-      return $reading;
+      return $this->readByCurrency($context);
     }
+
+    $reading = parent::read($context);
 
     // The raw number goes to the threshold; the formatted one goes in the
     // message, because "12480.5" and "$12,480.50" are not the same sentence.
     return new Reading(
       $reading->value,
       $reading->rows,
-      ['Total' => $this->currencyFormatter->format((string) $reading->measure(), $currency)] + $reading->context,
+      ['Total' => $this->money((string) $reading->measure(), $currency)] + $reading->context,
       $reading->cacheability,
     );
+  }
+
+  /**
+   * A total written the way the currency is written.
+   *
+   * The formatter trims a whole number to no decimals on its own, so a day
+   * taking exactly 400 reads "€ 400" rather than "€ 400.00". Asking for the
+   * currency's own fraction digits fixes that without hardcoding two of
+   * them: yen has none, and "¥ 1,234.00" would be wrong in the other
+   * direction.
+   */
+  protected function money(string $amount, string $code): string {
+    $currency = $this->entityTypeManager->getStorage('commerce_currency')->load($code);
+    $options = [];
+
+    if ($currency instanceof CurrencyInterface) {
+      $options['minimum_fraction_digits'] = $currency->getFractionDigits();
+    }
+
+    return $this->currencyFormatter->format($amount, $code, $options);
+  }
+
+  /**
+   * Takings per currency, for a shop that sells in more than one.
+   *
+   * One aggregate query grouped by currency rather than one query per
+   * currency, so a shop with twenty of them still costs one round trip.
+   */
+  protected function readByCurrency(array $context): Reading {
+    $cacheability = new CacheableMetadata();
+    $cacheability->addCacheTags($this->entityTypeManager->getDefinition('commerce_order')->getListCacheTags());
+
+    $result = $this->query('commerce_order', TRUE)
+      ->aggregate('total_price.number', 'SUM')
+      ->groupBy('total_price.currency_code')
+      ->execute();
+
+    $rows = [];
+    $highest = 0.0;
+
+    foreach ((array) $result as $row) {
+      if (!is_array($row)) {
+        continue;
+      }
+
+      // The result keys are derived from the field and function and differ
+      // per field type, so they are found rather than guessed.
+      $code = '';
+      $total = 0.0;
+
+      foreach ($row as $key => $value) {
+        if (str_contains((string) $key, 'currency_code')) {
+          $code = (string) $value;
+        }
+        elseif (str_contains((string) $key, 'number')) {
+          $total = (float) $value;
+        }
+      }
+
+      if ($code === '') {
+        continue;
+      }
+
+      $rows[] = [
+        'currency' => $code,
+        'total' => $total,
+        'formatted' => $this->money((string) $total, $code),
+      ];
+
+      $highest = max($highest, $total);
+    }
+
+    // Biggest first: the currency that matters most to the shop is the one
+    // it takes the most in, and that is the line worth reading first.
+    usort($rows, static fn (array $a, array $b): int => $b['total'] <=> $a['total']);
+
+    $facts = ['Currencies' => (string) count($rows)] + $this->contextFacts();
+
+    foreach ($rows as $row) {
+      $facts[$row['currency']] = $row['formatted'];
+    }
+
+    return new Reading($highest, $rows, $facts, $cacheability);
   }
 
   /**

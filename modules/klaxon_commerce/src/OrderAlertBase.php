@@ -193,7 +193,10 @@ abstract class OrderAlertBase extends EntityQuery {
     }
 
     if ($this->hasCartField()) {
-      $query->condition('cart', $this->isAboutCarts());
+      // Cast, do not pass the boolean. The field stores 0 and 1, and an
+      // entity query given PHP FALSE matches neither - so every order-shaped
+      // alert quietly measured nothing at all.
+      $query->condition('cart', (int) $this->isAboutCarts());
     }
 
     return $query;
