@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Drupal\klaxon\Hook;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Hook\Attribute\Hook;
+use Drupal\klaxon\Alert\Deliverer;
 use Drupal\klaxon\Alert\Dispatcher;
 use Drupal\klaxon\Alert\StateStore;
 
@@ -29,6 +31,7 @@ class KlaxonHooks {
     protected readonly Dispatcher $dispatcher,
     protected readonly StateStore $state,
     protected readonly TimeInterface $time,
+    protected readonly ConfigFactoryInterface $configFactory,
   ) {}
 
   /**
@@ -36,8 +39,42 @@ class KlaxonHooks {
    */
   #[Hook('cron')]
   public function cron(): void {
-    $this->dispatcher->runDue();
+    // Cron is the fallback, not the only way in. A site whose scheduler runs
+    // `drush klaxon:due` on its own turns this off, so alerts are evaluated
+    // once on that schedule rather than twice on two.
+    //
+    // Nothing breaks when both run - runDue() honours each alert's own
+    // interval, and an alert not yet due is a no-op - but a site that has
+    // taken the trouble to schedule it should be able to say so.
+    if ($this->configFactory->get('klaxon.settings')->get('run_on_cron') ?? TRUE) {
+      $this->dispatcher->runDue();
+    }
+
+    // Pruning is housekeeping and belongs on cron either way: it is not the
+    // work a scheduler was asked to take over, and it has no command of its
+    // own to take it over with.
     $this->state->pruneLedger($this->time->getRequestTime() - self::LEDGER_RETENTION);
+  }
+
+  /**
+   * Implements hook_queue_info_alter().
+   *
+   * Takes the delivery queue off cron when cron has been switched off.
+   *
+   * The queue worker asks cron for 30 seconds a run. That is the right
+   * default, but a site running `drush klaxon:deliver` on a schedule has
+   * already said who drains the queue, and leaving cron at it as well means
+   * two things doing one job. Nothing is delivered twice either way - the
+   * queue leases each item - but cron spending 30 seconds on a queue that is
+   * already empty is work nobody asked for.
+   */
+  #[Hook('queue_info_alter')]
+  public function queueInfoAlter(array &$queues): void {
+    if ($this->configFactory->get('klaxon.settings')->get('run_on_cron') ?? TRUE) {
+      return;
+    }
+
+    unset($queues[Deliverer::QUEUE]['cron']);
   }
 
   /**

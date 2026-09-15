@@ -81,3 +81,20 @@ function klaxon_schema(): array {
 
   return $schema;
 }
+
+/**
+ * Add the setting that says whether cron evaluates alerts.
+ */
+function klaxon_update_11001(): string {
+  $config = \Drupal::configFactory()->getEditable('klaxon.settings');
+
+  if ($config->get('run_on_cron') !== NULL) {
+    return (string) t('Already set.');
+  }
+
+  // TRUE for an existing site: cron is how its alerts have been running, and
+  // an update must not quietly stop them.
+  $config->set('run_on_cron', TRUE)->save();
+
+  return (string) t('Alerts keep being evaluated on cron. Turn it off in the Klaxon settings if a scheduler runs klaxon:due instead.');
+}

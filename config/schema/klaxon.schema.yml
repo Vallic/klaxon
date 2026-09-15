@@ -2,6 +2,9 @@ klaxon.settings:
   type: config_object
   label: 'Klaxon settings'
   mapping:
+    run_on_cron:
+      type: boolean
+      label: 'Evaluate alerts on Drupal cron'
     max_attempts:
       type: integer
       label: 'Delivery attempts before giving up'

@@ -70,6 +70,15 @@ class SettingsForm extends ConfigFormBase {
       '#description' => $this->t('Alerts are delivered on cron so that nothing waits on a mail server or a chat API. A number that never comes down usually means cron is not running.'),
     ];
 
+    $form['run_on_cron'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Evaluate alerts on Drupal cron'),
+      '#default_value' => $config->get('run_on_cron') ?? TRUE,
+      '#description' => $this->t('On by default, so a site that schedules nothing still runs its alerts. Turn it off when something else runs <code>drush klaxon:due</code> and <code>drush klaxon:deliver</code> on a schedule of its own — a system crontab, or a scheduler like <a href=":druker">Druker</a>. Off, cron neither evaluates alerts nor drains the delivery queue, so each is done once by whatever you scheduled rather than twice. Nothing breaks if both run: an alert that is not due does nothing, and the queue leases each message so none is sent twice. Pruning old records stays on cron either way — it has no command of its own.', [
+        ':druker' => 'https://www.drupal.org/project/druker',
+      ]),
+    ];
+
     $form['max_attempts'] = [
       '#type' => 'number',
       '#title' => $this->t('Give up after'),
@@ -110,6 +119,7 @@ class SettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $this->config('klaxon.settings')
+      ->set('run_on_cron', (bool) $form_state->getValue('run_on_cron'))
       ->set('max_attempts', (int) $form_state->getValue('max_attempts'))
       ->set('retry_delay', (int) $form_state->getValue('retry_delay'))
       ->set('fallback_channel', (string) $form_state->getValue('fallback_channel'))
