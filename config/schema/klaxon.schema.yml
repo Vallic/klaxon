@@ -152,6 +152,9 @@ klaxon.alert_type.entity_query:
     bundle:
       type: string
       label: 'Bundle'
+    conjunction:
+      type: string
+      label: 'Whether all conditions must match, or any of them'
     conditions:
       type: sequence
       label: 'Query conditions'

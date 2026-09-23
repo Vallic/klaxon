@@ -50,11 +50,19 @@ tabs: **Dashboard**, **Alerts**, **Channels** and **Settings**.
 
 1. Add a **channel** first. An alert with nowhere to go still runs and still
    records its state, it just says nothing.
-2. Add an **alert**, which asks what kind of alert it is — grouped by category,
-   so the shop ones sit together — and then only what that kind needs.
+2. Add an **alert**. It asks in three steps: what the alert is and what kind it
+   is — grouped by category, so the shop ones sit together — then only what
+   that kind needs, then where it goes and what it says. Editing walks the same
+   three, and an existing alert can be saved from any of them, so changing one
+   answer is one step and one click.
 3. Grant permissions. *Administer Klaxon alerts* is for the people writing
    them; *Administer Klaxon channels* is restricted separately, because a
    channel holds credentials.
+
+An entity query alert can also be narrowed to *only the ones matching*: rows of
+field, test and value, with the fields on offer taken from whatever content the
+alert measures. The tests are the entity query's own, including *is one of* for
+a comma separated list and *is empty* for a field with nothing in it.
 
 Every alert row has a **Run now** operation. It evaluates immediately and tells
 you whether it fired, which is the fastest way to find out that a window is

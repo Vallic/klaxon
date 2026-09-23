@@ -22,7 +22,7 @@ class MessageRenderer {
   /**
    * How many rows are listed before the message says "and N more".
    */
-  protected const MAX_LISTED_ROWS = 20;
+  public const MAX_LISTED_ROWS = 20;
 
   public function __construct(
     protected readonly Token $token,

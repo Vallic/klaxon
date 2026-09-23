@@ -69,7 +69,37 @@ class Dispatcher {
    *   TRUE when a message was produced and a channel accepted it.
    */
   public function fireNow(string $alert_id, array $context = []): bool {
-    return $this->evaluate($alert_id, $context, TRUE);
+    return $this->fireNowExplained($alert_id, $context)->spoke();
+  }
+
+  /**
+   * Runs one alert now and says what came of it.
+   *
+   * @param string $alert_id
+   *   The alert to run.
+   * @param array $context
+   *   Passed to the alert type.
+   *
+   * @return \Drupal\klaxon\Alert\Outcome
+   *   Whether it spoke, and the reason when it did not.
+   */
+  public function fireNowExplained(string $alert_id, array $context = []): Outcome {
+    $alert = $this->entityTypeManager->getStorage('klaxon_alert')->load($alert_id);
+
+    if (!$alert instanceof AlertInterface) {
+      $this->logger->warning('Cannot fire unknown alert @id.', ['@id' => $alert_id]);
+      return new Outcome(Outcome::UNKNOWN);
+    }
+
+    if (!$alert->status()) {
+      return new Outcome(Outcome::DISABLED);
+    }
+
+    $outcome = $this->runner->evaluate($alert, $context);
+
+    return $outcome->message === NULL
+      ? $outcome
+      : $outcome->delivered($this->deliverer->send($alert, $outcome->message));
   }
 
   /**

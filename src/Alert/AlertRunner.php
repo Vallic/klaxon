@@ -41,6 +41,21 @@ class AlertRunner {
    *   The message to deliver, or NULL when there is nothing to say.
    */
   public function run(AlertInterface $alert, array $context = []): ?Message {
+    return $this->evaluate($alert, $context)->message;
+  }
+
+  /**
+   * Evaluates one alert now, and says what came of it.
+   *
+   * @param \Drupal\klaxon\Entity\AlertInterface $alert
+   *   The alert to evaluate.
+   * @param array $context
+   *   Context for the alert type, as ::run() takes it.
+   *
+   * @return \Drupal\klaxon\Alert\Outcome
+   *   The message, if there is one, and the reason when there is not.
+   */
+  public function evaluate(AlertInterface $alert, array $context = []): Outcome {
     $now = $this->time->getRequestTime();
     $state = $this->state->get((string) $alert->id());
     $state->lastRun = $now;
@@ -57,7 +72,7 @@ class AlertRunner {
         '@message' => $e->getMessage(),
       ]);
       $this->state->save($state);
-      return NULL;
+      return new Outcome(Outcome::UNREADABLE);
     }
 
     // Per-row alerts report each row once, ever. Filtering before the condition
@@ -74,6 +89,7 @@ class AlertRunner {
 
     $fires = $type->fires($reading);
     $message = $this->message($alert, $state, $reading, $fires, $now);
+    $reason = $this->reason($alert, $state, $fires, $message, $now);
 
     if ($message !== NULL) {
       $state->lastFired = $now;
@@ -84,11 +100,34 @@ class AlertRunner {
       }
     }
 
+    $silent_for = $state->isFiring() && $alert->getCooldown() > 0 && $state->lastFired !== NULL
+      ? max(0, $state->lastFired + $alert->getCooldown() - $now)
+      : 0;
+
     $state->status = $fires ? AlertState::FIRING : AlertState::OK;
     $state->lastValue = (float) $reading->measure();
     $this->state->save($state);
 
-    return $message;
+    return new Outcome($reason, $message, $reading, 0, $silent_for);
+  }
+
+  /**
+   * Why an alert spoke, or why it did not.
+   */
+  protected function reason(AlertInterface $alert, AlertState $state, bool $fires, ?Message $message, int $now): string {
+    if ($message !== NULL) {
+      // Delivery decides between spoken and shouted into a void; the caller
+      // fills that in once it has tried.
+      return Outcome::DELIVERED;
+    }
+
+    if (!$fires) {
+      return Outcome::NOT_FIRING;
+    }
+
+    return $state->inCooldown($now, $alert->getCooldown())
+      ? Outcome::COOLDOWN
+      : Outcome::ALREADY_FIRING;
   }
 
   /**

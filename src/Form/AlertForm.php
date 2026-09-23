@@ -8,6 +8,7 @@ use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Form\SubformState;
+use Drupal\klaxon\Alert\MessageRenderer;
 use Drupal\klaxon\AlertType\AlertTypeInterface;
 use Drupal\klaxon\AlertType\AlertTypeManager;
 use Drupal\klaxon\Entity\AlertInterface;
@@ -15,21 +16,31 @@ use Drupal\klaxon\Message;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Add and edit form for alerts.
+ * Add and edit form for alerts, asked one step at a time.
  *
  * One question decides the shape of the form: what kind of alert is this. The
- * type plugin then asks for whatever it actually needs, and everything below
+ * type plugin then asks for whatever it actually needs, and everything after
  * it — channels, how often to repeat, the message — is the same whatever was
- * picked.
+ * picked. That is the order the steps follow.
+ *
+ * Steps rather than one page because the middle one belongs to a plugin, and
+ * on one page it could only be swapped in by AJAX. Everything that plugin
+ * wanted to build from a value of its own — a field list that follows the
+ * chosen entity type, a row you can add another of — then had to work inside
+ * that replaced region, nested in the AJAX that put it there. With the type
+ * settled a step earlier, the plugin's form is just a form.
+ *
+ * Editing is stepped too: the same three questions in the same order, with
+ * Save on every step, so a change to one of them is one step and one click.
  */
 class AlertForm extends EntityForm {
 
   use PluginPickerTrait;
 
   /**
-   * The DOM id AJAX replaces when the alert type changes.
+   * What each step asks about, in order.
    */
-  protected const WRAPPER_ID = 'klaxon-type-settings';
+  protected const STEPS = ['basics', 'settings', 'delivery'];
 
   public function __construct(
     protected readonly AlertTypeManager $alertTypeManager,
@@ -47,6 +58,33 @@ class AlertForm extends EntityForm {
    */
   public function form(array $form, FormStateInterface $form_state): array {
     $form = parent::form($form, $form_state);
+    $step = $this->step($form_state);
+
+    $form['klaxon_progress'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'p',
+      '#value' => $this->t('Step @step of @total: @title', [
+        '@step' => $step + 1,
+        '@total' => count(self::STEPS),
+        '@title' => $this->stepTitle($step),
+      ]),
+      '#attributes' => ['class' => ['klaxon-step']],
+      '#weight' => -100,
+    ];
+
+    match (self::STEPS[$step]) {
+      'basics' => $this->basicsStep($form, $form_state),
+      'settings' => $this->settingsStep($form, $form_state),
+      'delivery' => $this->deliveryStep($form, $form_state),
+    };
+
+    return $form;
+  }
+
+  /**
+   * Which alert this is, and what kind.
+   */
+  protected function basicsStep(array &$form, FormStateInterface $form_state): void {
     $alert = $this->entity;
     assert($alert instanceof AlertInterface);
 
@@ -81,7 +119,48 @@ class AlertForm extends EntityForm {
       '#description' => $this->t('For whoever finds this alert later and wonders why it exists.'),
     ];
 
-    $this->typeSection($form, $form_state);
+    $form['type_id'] = [
+      '#type' => 'select',
+      '#title' => $this->t('This alert is'),
+      '#options' => $this->pluginOptions($this->alertTypeManager),
+      '#default_value' => $this->typeId($form_state),
+      '#description' => $this->t('What it asks next depends on this. Changing it on an existing alert starts its settings again from the defaults of the type picked.'),
+    ];
+  }
+
+  /**
+   * Whatever the chosen type needs to know.
+   */
+  protected function settingsStep(array &$form, FormStateInterface $form_state): void {
+    $plugin = $this->typePlugin($form_state);
+    $description = (string) ($this->alertTypeManager->getDefinition($plugin->getPluginId())['description'] ?? '');
+
+    if ($description !== '') {
+      $form['type_description'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'p',
+        '#value' => $description,
+        '#attributes' => ['class' => ['klaxon-type-description']],
+      ];
+    }
+
+    // A container of its own, so nothing this form adds can collide with a
+    // setting the plugin happens to call the same thing.
+    $form['type_settings'] = [
+      '#type' => 'container',
+      '#tree' => TRUE,
+    ];
+
+    $subform_state = SubformState::createForSubform($form['type_settings'], $form, $form_state);
+    $form['type_settings'] = $plugin->buildConfigurationForm($form['type_settings'], $subform_state) + $form['type_settings'];
+  }
+
+  /**
+   * Where it goes, how often, and what it says.
+   */
+  protected function deliveryStep(array &$form, FormStateInterface $form_state): void {
+    $alert = $this->entity;
+    assert($alert instanceof AlertInterface);
 
     $form['delivery'] = [
       '#type' => 'details',
@@ -146,12 +225,26 @@ class AlertForm extends EntityForm {
       '#type' => 'details',
       '#title' => $this->t('Message'),
       '#open' => FALSE,
-      '#description' => $this->t('Placeholders: @label, @value, @count and @rows. Entity tokens work too when the alert is about one thing.', [
-        '@label' => '[klaxon:label]',
-        '@value' => '[klaxon:value]',
-        '@count' => '[klaxon:count]',
-        '@rows' => '[klaxon:rows]',
-      ]),
+      '#description' => $this->t('What the alert says when it fires. Leave either field empty and one is written for you.'),
+    ];
+
+    // Named in full, because "count" and "value" are not the same number and
+    // the difference only shows up in a message that has already gone out:
+    // an alert counting orders reads its total from value, and has no rows
+    // for count to count.
+    $form['message']['placeholders'] = [
+      '#theme' => 'item_list',
+      '#title' => $this->t('Placeholders'),
+      '#weight' => -10,
+      '#items' => [
+        $this->t('<code>[klaxon:label]</code> — this alert&#039;s name.'),
+        $this->t('<code>[klaxon:value]</code> — the number it measured: the count, the total it added up, or how many rows it matched. This is the one that answers "how many".'),
+        $this->t('<code>[klaxon:count]</code> — how many rows it lists. An alert that measures a number instead of listing rows has none, so this reads 0 — use <code>[klaxon:value]</code> there.'),
+        $this->t('<code>[klaxon:rows]</code> — those rows, one per line, up to @max of them and then "and N more". Empty for an alert that only measures a number.', [
+          '@max' => MessageRenderer::MAX_LISTED_ROWS,
+        ]),
+        $this->t('Entity tokens, such as <code>[commerce_order:order_number]</code>, when the alert is about one thing — one watching a saved entity, rather than counting many.'),
+      ],
     ];
 
     $form['message']['subject'] = [
@@ -168,89 +261,67 @@ class AlertForm extends EntityForm {
       '#default_value' => $alert->get('body') ?? '',
       '#description' => $this->t('Leave empty and a sensible default is written for you.'),
     ];
-
-    return $form;
   }
 
   /**
-   * The type picker and whatever settings the chosen type asks for.
+   * {@inheritdoc}
    */
-  protected function typeSection(array &$form, FormStateInterface $form_state): void {
-    $form['type'] = [
-      '#type' => 'details',
-      '#title' => $this->t('What kind of alert'),
-      '#open' => TRUE,
-    ];
+  protected function actions(array $form, FormStateInterface $form_state): array {
+    $actions = parent::actions($form, $form_state);
+    $step = $this->step($form_state);
+    $last = $step === count(self::STEPS) - 1;
 
-    $selected = $this->typeId($form_state);
+    // A new alert is only worth saving once it has been through every step:
+    // one without a type has nothing to run. An existing one is already whole,
+    // so every step can be saved from and left.
+    if (!$last && $this->entity->isNew()) {
+      unset($actions['submit']);
+    }
+    elseif (!$last) {
+      $actions['submit']['#value'] = $this->t('Save');
+      $actions['submit']['#button_type'] = 'secondary';
+    }
 
-    $form['type']['type_id'] = [
-      '#type' => 'select',
-      '#title' => $this->t('This alert is'),
-      '#options' => $this->pluginOptions($this->alertTypeManager),
-      '#default_value' => $selected,
-      '#ajax' => [
-        'callback' => '::updateSettings',
-        'wrapper' => self::WRAPPER_ID,
-      ],
-      // Changing the picker must not validate the rest of the form: choosing
-      // a type would otherwise run that type's own validation against a form
-      // nobody has filled in yet.
-      //
-      // Limited to the picker itself rather than to nothing. An empty list
-      // prunes every submitted value, this element's included, so the
-      // rebuild could no longer see which type had just been chosen and the
-      // settings never changed.
-      '#limit_validation_errors' => [['type_id']],
-    ];
-
-    // Everything the chosen type contributes is replaced together when the
-    // select changes: its explanation, and its settings.
-    $form['type']['chosen'] = [
-      '#type' => 'container',
-      '#prefix' => '<div id="' . self::WRAPPER_ID . '">',
-      '#suffix' => '</div>',
-    ];
-
-    // A select cannot carry a description per option the way radios could, so
-    // the chosen type explains itself above its own settings.
-    $description = (string) ($this->alertTypeManager->getDefinition($selected)['description'] ?? '');
-
-    if ($description !== '') {
-      $form['type']['chosen']['description'] = [
-        '#type' => 'html_tag',
-        '#tag' => 'p',
-        '#value' => $description,
-        '#attributes' => ['class' => ['klaxon-type-description']],
+    if ($step > 0) {
+      $actions['back'] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Back'),
+        '#submit' => ['::changeStep'],
+        '#klaxon_step' => $step - 1,
+        // Going back is not an answer to anything on this step.
+        '#limit_validation_errors' => [],
+        '#weight' => -10,
       ];
     }
 
-    // The settings container stays a direct child rather than being merged
-    // into the one above, so nothing this form adds can collide with a
-    // setting the plugin happens to call the same thing.
-    $wrapper = [
-      '#type' => 'container',
-      '#tree' => TRUE,
-    ];
+    if (!$last) {
+      $actions['next'] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Next'),
+        '#button_type' => 'primary',
+        '#submit' => ['::changeStep'],
+        '#klaxon_step' => $step + 1,
+        '#weight' => 10,
+      ];
+    }
 
-    $form['type']['chosen']['type_settings'] = $wrapper;
-
-    $subform_state = SubformState::createForSubform($form['type']['chosen']['type_settings'], $form, $form_state);
-    $built = $this->typePlugin($form_state)
-      ->buildConfigurationForm($form['type']['chosen']['type_settings'], $subform_state);
-
-    // Stamped with the type it was built for. On the request that changes
-    // the select, the form being validated is still the previous type's,
-    // and running the new type's validation against it is meaningless.
-    $form['type']['chosen']['type_settings'] = $built + $wrapper;
-    $form['type']['chosen']['type_settings']['#klaxon_type'] = $this->typePlugin($form_state)->getPluginId();
+    return $actions;
   }
 
   /**
-   * AJAX callback returning everything the type just picked contributes.
+   * Keeps this step's answers and moves to another one.
    */
-  public function updateSettings(array $form, FormStateInterface $form_state): array {
-    return $form['type']['chosen'];
+  public function changeStep(array &$form, FormStateInterface $form_state): void {
+    $trigger = $form_state->getTriggeringElement();
+
+    // Back discards nothing, but it has skipped validation, so there is
+    // nothing worth keeping from a step that was never checked.
+    if ((int) $trigger['#klaxon_step'] > $this->step($form_state)) {
+      $this->applyStep($form, $form_state);
+    }
+
+    $form_state->set('klaxon_step', (int) $trigger['#klaxon_step']);
+    $form_state->setRebuild();
   }
 
   /**
@@ -266,19 +337,13 @@ class AlertForm extends EntityForm {
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     parent::validateForm($form, $form_state);
 
-    $plugin = $this->typePlugin($form_state);
-
-    // The settings subform belongs to whichever type was selected when the
-    // form was built. On the request that changes the select those disagree,
-    // and validating the new type against the old type's elements is both
-    // meaningless and a fatal - so leave it to the rebuilt form.
-    if (($form['type']['chosen']['type_settings']['#klaxon_type'] ?? NULL) !== $plugin->getPluginId()) {
+    if (self::STEPS[$this->step($form_state)] !== 'settings') {
       return;
     }
 
-    $settings = &$form['type']['chosen']['type_settings'];
+    $settings = &$form['type_settings'];
     $subform_state = SubformState::createForSubform($settings, $form, $form_state);
-    $plugin->validateConfigurationForm($settings, $subform_state);
+    $this->typePlugin($form_state)->validateConfigurationForm($settings, $subform_state);
   }
 
   /**
@@ -289,32 +354,60 @@ class AlertForm extends EntityForm {
 
     // The default copies every submitted value onto the entity, which would
     // make the type picker and its settings subform into dynamic properties
-    // of the alert. Only the plain fields belong here; everything else is
-    // written by submitForm() once the plugin has had its say.
-    foreach (['id', 'label', 'status', 'description'] as $key) {
-      $entity->set($key, $form_state->getValue($key));
-    }
+    // of the alert. Each step writes only what it asked about, so the steps
+    // that have not been shown leave what is already stored alone.
+    match (self::STEPS[$this->step($form_state)]) {
+      'basics' => $this->copyBasics($entity, $form_state),
+      'settings' => $this->copySettings($entity, $form, $form_state),
+      'delivery' => $this->copyDelivery($entity, $form_state),
+    };
   }
 
   /**
-   * {@inheritdoc}
+   * Writes the first step onto the alert.
    */
-  public function submitForm(array &$form, FormStateInterface $form_state): void {
-    parent::submitForm($form, $form_state);
-    $alert = $this->entity;
-    assert($alert instanceof AlertInterface);
+  protected function copyBasics(AlertInterface $alert, FormStateInterface $form_state): void {
+    foreach (['id', 'label', 'status', 'description'] as $key) {
+      $alert->set($key, $form_state->getValue($key));
+    }
 
+    // Only the id is settled here. Picking a different type throws away
+    // settings that meant something else; keeping the same one keeps them,
+    // so coming back to this step and leaving it alone changes nothing.
+    $stored = (array) ($alert->get('type') ?? []);
+    $chosen = (string) $form_state->getValue('type_id');
+
+    $alert->set('type', ['id' => $chosen] + ((string) ($stored['id'] ?? '') === $chosen ? $stored : []));
+  }
+
+  /**
+   * Writes the plugin's own step onto the alert.
+   */
+  protected function copySettings(AlertInterface $alert, array $form, FormStateInterface $form_state): void {
     $plugin = $this->typePlugin($form_state);
-    $settings = &$form['type']['chosen']['type_settings'];
+    $settings = &$form['type_settings'];
     $subform_state = SubformState::createForSubform($settings, $form, $form_state);
     $plugin->submitConfigurationForm($settings, $subform_state);
 
     $alert->set('type', ['id' => $plugin->getPluginId()] + $plugin->getConfiguration());
+  }
+
+  /**
+   * Writes the last step onto the alert.
+   */
+  protected function copyDelivery(AlertInterface $alert, FormStateInterface $form_state): void {
     $alert->set('channels', array_values(array_filter((array) $form_state->getValue('channels'))));
 
     foreach (['notify_on', 'cooldown', 'per_row', 'severity', 'subject', 'body'] as $name) {
       $alert->set($name, $form_state->getValue($name));
     }
+  }
+
+  /**
+   * Keeps the current step's answers on the entity between rebuilds.
+   */
+  protected function applyStep(array $form, FormStateInterface $form_state): void {
+    $this->entity = $this->buildEntity($form, $form_state);
   }
 
   /**
@@ -330,19 +423,30 @@ class AlertForm extends EntityForm {
   }
 
   /**
+   * The step being shown, as an index into ::STEPS.
+   */
+  protected function step(FormStateInterface $form_state): int {
+    $step = (int) ($form_state->get('klaxon_step') ?? 0);
+
+    return max(0, min($step, count(self::STEPS) - 1));
+  }
+
+  /**
+   * What to call a step in the progress line.
+   */
+  protected function stepTitle(int $step): string {
+    return (string) match (self::STEPS[$step]) {
+      'basics' => $this->t('What this alert is'),
+      'settings' => $this->t('What it watches'),
+      'delivery' => $this->t('Where it goes'),
+    };
+  }
+
+  /**
    * The alert type currently selected, submitted value winning over stored.
    */
   protected function typeId(FormStateInterface $form_state): string {
     $submitted = $form_state->getValue('type_id');
-
-    // On the request the select makes, the form is built before the values
-    // are assembled, so getValue() is still empty and only the raw input
-    // knows what was just chosen. Without this the settings subform was
-    // rebuilt for the type that was already there, and picking a different
-    // type appeared to do nothing at all.
-    if (!is_string($submitted) || $submitted === '') {
-      $submitted = $form_state->getUserInput()['type_id'] ?? NULL;
-    }
 
     if (is_string($submitted) && $submitted !== '' && $this->alertTypeManager->hasDefinition($submitted)) {
       return $submitted;
@@ -364,7 +468,7 @@ class AlertForm extends EntityForm {
   }
 
   /**
-   * The plugin instance the settings subform is built from.
+   * The plugin instance the settings step is built from.
    */
   protected function typePlugin(FormStateInterface $form_state): AlertTypeInterface {
     $id = $this->typeId($form_state);

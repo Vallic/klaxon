@@ -5,20 +5,22 @@ declare(strict_types=1);
 namespace Drupal\Tests\klaxon\Kernel;
 
 use Drupal\Core\Form\FormState;
-use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\entity_test\EntityTestHelper;
 use Drupal\klaxon\Entity\Alert;
 use Drupal\klaxon\Entity\Channel;
+use Drupal\klaxon\Plugin\Klaxon\AlertType\EntityQuery;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * Covers the alert form: picking a type, and what that stores.
+ * Covers the alert form: the steps it asks in, and what they store.
  *
- * The picker is the one place where a plugin's settings cross from a form into
- * configuration, and the nesting it travels through is invisible until it
- * breaks. Everything here is about that crossing.
+ * The middle step is the one place where a plugin's settings cross from a form
+ * into configuration, and the nesting it travels through is invisible until it
+ * breaks. Most of this is about that crossing, and about each step leaving the
+ * steps it did not ask about alone.
  */
 #[Group('klaxon')]
 #[RunTestsInSeparateProcesses]
@@ -28,6 +30,13 @@ class AlertFormTest extends KernelTestBase {
    * {@inheritdoc}
    */
   protected static $modules = ['system', 'user', 'entity_test', 'klaxon'];
+
+  /**
+   * The step numbers, so the tests read as the form does.
+   */
+  protected const BASICS = 0;
+  protected const SETTINGS = 1;
+  protected const DELIVERY = 2;
 
   /**
    * {@inheritdoc}
@@ -51,7 +60,7 @@ class AlertFormTest extends KernelTestBase {
    * The types are offered grouped by category, not as one flat list.
    */
   public function testTypesAreGroupedByCategory(): void {
-    $options = $this->buildForm()['type']['type_id']['#options'];
+    $options = $this->buildStep(self::BASICS)['type_id']['#options'];
 
     $this->assertArrayHasKey('General', $options, 'The shipped types are grouped.');
     $this->assertArrayHasKey('entity_query', $options['General']);
@@ -60,53 +69,75 @@ class AlertFormTest extends KernelTestBase {
   }
 
   /**
-   * The chosen type explains itself, and does so inside the replaced region.
+   * Each step asks its own questions and none of the others.
    */
-  public function testTheChosenTypeExplainsItself(): void {
-    $form = $this->buildForm();
+  public function testEachStepAsksItsOwnQuestions(): void {
+    $basics = $this->buildStep(self::BASICS);
 
-    $this->assertSame('select', $form['type']['type_id']['#type']);
-    $this->assertNotEmpty($form['type']['chosen']['description']['#value']);
-    $this->assertArrayHasKey('type_settings', $form['type']['chosen']);
+    $this->assertArrayHasKey('label', $basics);
+    $this->assertArrayHasKey('type_id', $basics);
+    $this->assertArrayNotHasKey('type_settings', $basics, 'The type is picked before it is configured.');
+    $this->assertArrayNotHasKey('delivery', $basics);
 
-    // The explanation is a sibling of the settings, not a member of them:
-    // a plugin is free to have a setting of its own called "description".
-    $this->assertArrayNotHasKey('description', $form['type']['chosen']['type_settings']);
+    $settings = $this->buildStep(self::SETTINGS);
+
+    $this->assertArrayHasKey('type_settings', $settings);
+    $this->assertArrayNotHasKey('type_id', $settings, 'The picker is behind us.');
+    $this->assertArrayNotHasKey('delivery', $settings);
+
+    $delivery = $this->buildStep(self::DELIVERY);
+
+    $this->assertArrayHasKey('channels', $delivery['delivery']);
+    $this->assertArrayHasKey('subject', $delivery['message']);
+    $this->assertArrayNotHasKey('type_settings', $delivery);
   }
 
   /**
-   * A submitted form reaches configuration with the settings intact.
+   * The chosen type explains itself above its own settings.
    */
-  public function testSubmittingStoresTheTypeSettings(): void {
+  public function testTheChosenTypeExplainsItself(): void {
+    $settings = $this->buildStep(self::SETTINGS);
+
+    $this->assertNotEmpty($settings['type_description']['#value']);
+
+    // The explanation is a sibling of the settings, not a member of them: a
+    // plugin is free to have a setting of its own called "description".
+    $this->assertArrayNotHasKey('description', $settings['type_settings']);
+  }
+
+  /**
+   * Walking the three steps stores what each of them asked.
+   */
+  public function testWalkingTheStepsStoresEverything(): void {
     EntityTestHelper::createBundle('article', 'Article', 'entity_test');
 
-    $this->submitForm([
-      'label' => 'No new accounts today',
-      'id' => 'quiet_accounts',
-      'type_id' => 'entity_query',
-      'type_settings' => [
-        'schedule' => ['interval' => 600, 'cron' => ''],
-        'measure' => [
-          'entity_type' => 'entity_test',
-          'bundles_wrapper' => ['bundle' => 'article'],
-          'aggregate' => 'count',
-          'sum_field' => '',
-          'limit' => 200,
-          'date_field' => 'created',
-          'date_storage' => 'timestamp',
-          'window_from' => '-24 hours',
-          'window_to' => 'now',
-        ],
-        'fire' => ['operator' => 'empty', 'value' => 0],
+    $alert = $this->walk([
+      self::BASICS => [
+        'label' => 'No new accounts today',
+        'id' => 'quiet_accounts',
+        'type_id' => 'entity_query',
       ],
-      'channels' => ['c' => 'c'],
-      'severity' => 'critical',
-      'cooldown' => 1800,
+      self::SETTINGS => [
+        'type_settings' => [
+          'schedule' => ['interval' => 600, 'cron' => ''],
+          'measure' => [
+            'entity_type' => 'entity_test',
+            'bundles_wrapper' => ['bundle' => 'article'],
+            'aggregate' => 'count',
+            'date_field' => 'created',
+            'window_from' => '-24 hours',
+            'window_to' => 'now',
+          ],
+          'fire' => ['operator' => 'empty', 'value' => 0],
+        ],
+      ],
+      self::DELIVERY => [
+        'channels' => ['c' => 'c'],
+        'severity' => 'critical',
+        'cooldown' => 1800,
+      ],
     ]);
 
-    $alert = Alert::load('quiet_accounts');
-
-    $this->assertNotNull($alert, 'The alert was created.');
     $this->assertSame('entity_query', $alert->getTypeId());
     $this->assertSame(['c'], $alert->getChannelIds());
     $this->assertSame(1800, $alert->getCooldown());
@@ -114,8 +145,8 @@ class AlertFormTest extends KernelTestBase {
 
     $config = $alert->getType()->getConfiguration();
 
-    // The three form sections are flattened back out on the way in, so the
-    // stored shape does not mirror the form's nesting.
+    // The form's sections are flattened back out on the way in, so the stored
+    // shape does not mirror the form's nesting.
     $this->assertSame('entity_test', $config['entity_type']);
     $this->assertSame('article', $config['bundle'], 'The bundle came out of its AJAX container.');
     $this->assertSame('created', $config['date_field']);
@@ -124,52 +155,130 @@ class AlertFormTest extends KernelTestBase {
     $this->assertSame(600, $config['interval']);
     $this->assertArrayNotHasKey('measure', $config, 'No form scaffolding leaked into config.');
     $this->assertArrayNotHasKey('bundles_wrapper', $config);
-    $this->assertArrayNotHasKey('description', $config);
   }
 
   /**
-   * Switching type stores the new type, not a merge of both.
+   * Conditions typed into the form come back out as configuration.
+   *
+   * The rows are plain form elements rather than an AJAX list, so the blanks
+   * offered alongside the saved ones have to fall away by themselves.
    */
-  public function testSwitchingTypeDiscardsTheOldSettings(): void {
-    $this->submitForm([
-      'label' => 'Was a query',
-      'id' => 'switcher',
-      'type_id' => 'entity_query',
-      'type_settings' => [
-        'schedule' => ['interval' => 600, 'cron' => ''],
-        'measure' => [
-          'entity_type' => 'entity_test',
-          'bundles_wrapper' => ['bundle' => ''],
-          'aggregate' => 'count',
-          'sum_field' => '',
-          'limit' => 200,
-          'date_field' => 'created',
-          'date_storage' => 'timestamp',
-          'window_from' => '-24 hours',
-          'window_to' => 'now',
+  public function testConditionRowsSurviveTheForm(): void {
+    $alert = $this->walk([
+      self::BASICS => ['label' => 'Stuck', 'id' => 'stuck', 'type_id' => 'entity_query'],
+      self::SETTINGS => [
+        'type_settings' => [
+          'measure' => [
+            'entity_type' => 'entity_test',
+            'aggregate' => 'count',
+            'conditions' => [
+              'conjunction' => 'OR',
+              'rows' => [
+                ['field' => 'name', 'operator' => '=', 'value' => ' keep '],
+                // Asks about the field itself, so its value is dropped.
+                ['field' => 'name', 'operator' => 'IS NOT NULL', 'value' => 'ignored'],
+                // The row left empty.
+                ['field' => '', 'operator' => '=', 'value' => ''],
+              ],
+            ],
+          ],
+          'fire' => ['operator' => '>', 'value' => 0],
         ],
-        'fire' => ['operator' => 'empty', 'value' => 0],
       ],
-      'channels' => ['c' => 'c'],
+      self::DELIVERY => ['channels' => ['c' => 'c']],
+    ], NULL, [
+      self::SETTINGS => ['klaxon_condition_rows:entity_query' => array_fill(0, 3, [])],
     ]);
 
-    $this->submitForm([
-      'label' => 'Now fired by code',
-      'id' => 'switcher',
-      'type_id' => 'code',
-      'type_settings' => [],
-      'channels' => ['c' => 'c'],
-    ], Alert::load('switcher'));
+    $config = $alert->getType()->getConfiguration();
 
-    $config = Alert::load('switcher')->getType()->getConfiguration();
-
-    $this->assertSame('code', $config['id']);
-    $this->assertArrayNotHasKey('window_from', $config, 'Nothing from the query survived.');
-    $this->assertArrayNotHasKey('entity_type', $config);
+    $this->assertSame([
+      ['field' => 'name', 'operator' => '=', 'value' => 'keep'],
+      ['field' => 'name', 'operator' => 'IS NOT NULL', 'value' => ''],
+    ], $config['conditions'], 'Trimmed, blanks dropped, renumbered.');
+    $this->assertSame('OR', $config['conjunction'], 'And they are joined the way the form said.');
   }
 
   /**
-   * A bundled entity type offers its real bundles, not a text field.
+   * The fields on offer are the ones the chosen entity type has.
+   */
+  public function testConditionFieldsComeFromTheEntityType(): void {
+    $settings = $this->settingsFor(['id' => 'entity_query', 'entity_type' => 'entity_test']);
+    $options = $settings['measure']['conditions']['rows'][0]['field']['#options'];
+
+    $this->assertArrayHasKey('name', $options, 'Pickable, not typed from memory.');
+    $this->assertStringContainsString('name', (string) $options['name'], 'The machine name is in the label.');
+    $this->assertArrayNotHasKey('mail', $options, 'A field of some other entity type is not offered.');
+  }
+
+  /**
+   * A field written by hand keeps its row even when it is not on offer.
+   */
+  public function testFieldNotOnOfferIsKept(): void {
+    $settings = $this->settingsFor([
+      'id' => 'entity_query',
+      'entity_type' => 'entity_test',
+      'conditions' => [['field' => 'name.value', 'operator' => '=', 'value' => 'x']],
+    ]);
+
+    $this->assertArrayHasKey('name.value', $settings['measure']['conditions']['rows'][0]['field']['#options']);
+  }
+
+  /**
+   * A row can be added and taken away again, without leaving the step.
+   */
+  public function testRowsAreAddedAndRemoved(): void {
+    $settings = $this->settingsFor([
+      'id' => 'entity_query',
+      'entity_type' => 'entity_test',
+      'conditions' => [['field' => 'name', 'operator' => '=', 'value' => 'keep']],
+    ]);
+    $conditions = $settings['measure']['conditions'];
+
+    $this->assertCount(1, Element::children($conditions['rows']), 'What was saved, and no filler.');
+    $this->assertArrayHasKey('add', $conditions);
+    $this->assertSame([EntityQuery::class, 'addCondition'], $conditions['add']['#submit'][0]);
+
+    // A single row has nothing to be joined to, and removing it would leave
+    // the section with no way back.
+    $this->assertFalse($conditions['conjunction']['#access']);
+    $this->assertFalse($conditions['rows'][0]['remove']['#access']);
+
+    $two_rows = $this->settingsFor([
+      'id' => 'entity_query',
+      'entity_type' => 'entity_test',
+      'conditions' => [
+        ['field' => 'name', 'operator' => '=', 'value' => 'keep'],
+        ['field' => 'name', 'operator' => '<>', 'value' => 'drop'],
+      ],
+    ], 'two');
+    $conditions = $two_rows['measure']['conditions'];
+
+    $this->assertTrue($conditions['conjunction']['#access'], 'Two rows can be joined either way.');
+    $this->assertTrue($conditions['rows'][1]['remove']['#access']);
+    $this->assertNotSame(
+      $conditions['rows'][0]['remove']['#name'],
+      $conditions['rows'][1]['remove']['#name'],
+      'Each Remove submits as itself.',
+    );
+  }
+
+  /**
+   * Changing the entity type reloads the bundles and the field lists.
+   */
+  public function testTheEntityTypeSelectReloadsWhatDependsOnIt(): void {
+    $settings = $this->settingsFor(['id' => 'entity_query', 'entity_type' => 'entity_test']);
+
+    $this->assertSame(
+      [EntityQuery::class, 'updateForEntityType'],
+      $settings['measure']['entity_type']['#ajax']['callback'],
+    );
+    $this->assertNotEmpty($settings['measure']['bundles_wrapper']['#attributes']['id']);
+    $this->assertNotEmpty($settings['measure']['conditions']['#attributes']['id'], 'The conditions can be replaced too.');
+  }
+
+  /**
+   * Bundles are offered as a list when the entity type has any.
    */
   public function testBundlesAreOfferedWhenTheEntityTypeHasThem(): void {
     EntityTestHelper::createBundle('article', 'Article', 'entity_test');
@@ -203,116 +312,92 @@ class AlertFormTest extends KernelTestBase {
   }
 
   /**
-   * Changing the entity type reloads the bundles rather than the whole form.
+   * Switching type on the first step starts that type from its own defaults.
    */
-  public function testTheEntityTypeSelectReloadsJustTheBundles(): void {
-    $settings = $this->settingsFor([
-      'id' => 'entity_event',
-      'entity_type' => 'entity_test',
-      'operations' => ['insert'],
+  public function testSwitchingTypeDiscardsTheOldSettings(): void {
+    $alert = $this->walk([
+      self::BASICS => ['label' => 'Was a query', 'id' => 'switcher', 'type_id' => 'entity_query'],
+      self::SETTINGS => [
+        'type_settings' => [
+          'measure' => ['entity_type' => 'entity_test', 'aggregate' => 'count'],
+          'fire' => ['operator' => '>', 'value' => 7],
+        ],
+      ],
+      self::DELIVERY => ['channels' => ['c' => 'c']],
     ]);
 
-    $this->assertSame(
-      $settings['bundles_wrapper']['#attributes']['id'],
-      $settings['entity_type']['#ajax']['wrapper'],
-      'The select replaces the container next to it.',
-    );
+    $alert = $this->walk([
+      self::BASICS => ['label' => 'Now an event', 'id' => 'switcher', 'type_id' => 'entity_event'],
+    ], $alert);
+
+    $config = $alert->getType()->getConfiguration();
+
+    $this->assertSame('entity_event', $alert->getTypeId());
+    $this->assertArrayNotHasKey('operator', $config, 'The old type took its settings with it.');
   }
 
   /**
-   * Choosing a different type rebuilds that type's settings, not the old ones.
-   *
-   * The select's AJAX request builds the form before the submitted values
-   * are assembled, so only the raw input knows what was just picked. Reading
-   * getValue() alone left the settings on whatever type was already there,
-   * and changing the picker looked like it did nothing at all.
+   * Keeping the type keeps its settings, so passing back through changes none.
    */
-  public function testPickingTypeRebuildsItsOwnSettings(): void {
-    foreach (['entity_event', 'code', 'entity_query'] as $type) {
-      $form = $this->formAfterPicking($type);
-      $settings = $form['type']['chosen']['type_settings'];
-
-      $this->assertSame(
-        $type,
-        $settings['#klaxon_type'] ?? NULL,
-        sprintf('Picking %s builds %s settings.', $type, $type),
-      );
-    }
-  }
-
-  /**
-   * Changing the picker does not validate the rest of the form.
-   *
-   * It must still keep its own value though: limiting to nothing at all
-   * prunes every submitted value, this element's included, and the rebuild
-   * could then no longer see which type had just been chosen.
-   */
-  public function testChangingTheTypeValidatesNothingElse(): void {
-    $form = $this->formAfterPicking('entity_event');
-
-    $this->assertSame([['type_id']], $form['type']['type_id']['#limit_validation_errors']);
-    $this->assertSame([], $this->lastFormState->getErrors(), 'An empty form was not complained about.');
-  }
-
-  /**
-   * The form state from the last formAfterPicking() call.
-   */
-  protected FormStateInterface $lastFormState;
-
-  /**
-   * The form as the select's own AJAX request rebuilds it.
-   */
-  protected function formAfterPicking(string $type): array {
-    $form_object = $this->container->get('entity_type.manager')
-      ->getFormObject('klaxon_alert', 'add');
-    $form_object->setEntity($this->container->get('entity_type.manager')
-      ->getStorage('klaxon_alert')
-      ->create([]));
-
-    $form_state = new FormState();
-    $form_state->setProcessInput(TRUE);
-    $form_state->setUserInput([
-      'type_id' => $type,
-      '_triggering_element_name' => 'type_id',
-      'op' => '',
+  public function testKeepingTheTypeKeepsItsSettings(): void {
+    $alert = $this->walk([
+      self::BASICS => ['label' => 'Kept', 'id' => 'kept', 'type_id' => 'entity_query'],
+      self::SETTINGS => [
+        'type_settings' => [
+          'measure' => ['entity_type' => 'entity_test', 'aggregate' => 'count'],
+          'fire' => ['operator' => '>', 'value' => 7],
+        ],
+      ],
+      self::DELIVERY => ['channels' => ['c' => 'c'], 'severity' => 'critical'],
     ]);
-    $form_state->addBuildInfo('args', []);
 
-    $form = $this->container->get('form_builder')->buildForm($form_object, $form_state);
-    $this->lastFormState = $form_state;
+    // Renaming it is the whole of an edit that only touches the first step.
+    $alert = $this->walk([
+      self::BASICS => ['label' => 'Renamed', 'id' => 'kept', 'type_id' => 'entity_query'],
+    ], $alert);
 
-    return $form;
+    $config = $alert->getType()->getConfiguration();
+
+    $this->assertSame('Renamed', $alert->label());
+    $this->assertSame('entity_test', $config['entity_type'], 'The settings step was left alone.');
+    $this->assertSame(7, (int) $config['value']);
+    $this->assertSame(['c'], $alert->getChannelIds(), 'And so was the delivery step.');
+    $this->assertSame('critical', $alert->getSeverity());
   }
 
   /**
-   * The built settings subform for an alert of the given type.
+   * The middle step saved on its own leaves the other two as they were.
    */
-  protected function settingsFor(array $type): array {
-    $alert = $this->container->get('entity_type.manager')
-      ->getStorage('klaxon_alert')
-      ->create(['id' => 'probe', 'label' => 'Probe', 'type' => $type]);
-    $alert->save();
+  public function testSavingFromTheMiddleStepKeepsTheRest(): void {
+    $alert = $this->walk([
+      self::BASICS => ['label' => 'Middle', 'id' => 'middle', 'type_id' => 'entity_query'],
+      self::SETTINGS => [
+        'type_settings' => [
+          'measure' => ['entity_type' => 'entity_test', 'aggregate' => 'count'],
+          'fire' => ['operator' => '>', 'value' => 1],
+        ],
+      ],
+      self::DELIVERY => ['channels' => ['c' => 'c'], 'cooldown' => 900],
+    ]);
 
-    $form = $this->container->get('entity.form_builder')->getForm($alert, 'edit');
+    $alert = $this->walk([
+      self::SETTINGS => [
+        'type_settings' => [
+          'measure' => ['entity_type' => 'entity_test', 'aggregate' => 'count'],
+          'fire' => ['operator' => '>', 'value' => 42],
+        ],
+      ],
+    ], $alert);
 
-    return $form['type']['chosen']['type_settings'];
+    $this->assertSame(42, (int) $alert->getType()->getConfiguration()['value']);
+    $this->assertSame('Middle', $alert->label());
+    $this->assertSame(900, $alert->getCooldown());
   }
 
   /**
-   * Builds the add form the way the route does.
+   * Builds one step of the add form, or of an existing alert's edit form.
    */
-  protected function buildForm(): array {
-    $alert = $this->container->get('entity_type.manager')
-      ->getStorage('klaxon_alert')
-      ->create([]);
-
-    return $this->container->get('entity.form_builder')->getForm($alert, 'add');
-  }
-
-  /**
-   * Submits the alert form with the given values on top of the defaults.
-   */
-  protected function submitForm(array $values, ?Alert $alert = NULL): void {
+  protected function buildStep(int $step, ?Alert $alert = NULL): array {
     $form_object = $this->container->get('entity_type.manager')
       ->getFormObject('klaxon_alert', $alert === NULL ? 'add' : 'edit');
     $form_object->setEntity($alert ?? $this->container->get('entity_type.manager')
@@ -320,26 +405,78 @@ class AlertFormTest extends KernelTestBase {
       ->create([]));
 
     $form_state = new FormState();
-    $form_state->setValues($values + [
-      'status' => TRUE,
-      'description' => '',
-      'notify_on' => 'change',
-      'cooldown' => 0,
-      'per_row' => FALSE,
-      'severity' => 'warning',
-      'subject' => '',
-      'body' => '',
-    ]);
+    $form_state->set('klaxon_step', $step);
+    $form_state->addBuildInfo('args', []);
 
-    $this->container->get('form_builder')->submitForm($form_object, $form_state);
+    return $this->container->get('form_builder')->buildForm($form_object, $form_state);
+  }
 
-    $this->assertSame([], $form_state->getErrors(), 'The form submitted without errors.');
+  /**
+   * The built settings step for an alert of the given type.
+   */
+  protected function settingsFor(array $type, string $id = 'probe'): array {
+    $alert = Alert::create(['id' => $id, 'label' => 'Probe', 'type' => $type]);
+    $alert->save();
+
+    return $this->buildStep(self::SETTINGS, $alert)['type_settings'];
+  }
+
+  /**
+   * Submits the given steps in order, on one alert, and returns it saved.
+   *
+   * Steps are keyed by step number, so a test can walk all three or only the
+   * one it is about - which is what saving from an unfinished wizard does.
+   */
+  protected function walk(array $steps, ?Alert $alert = NULL, array $state = []): Alert {
+    $form_object = $this->container->get('entity_type.manager')
+      ->getFormObject('klaxon_alert', $alert === NULL ? 'add' : 'edit');
+    $form_object->setEntity($alert ?? $this->container->get('entity_type.manager')
+      ->getStorage('klaxon_alert')
+      ->create([]));
+
+    foreach ($steps as $step => $values) {
+      $form_state = new FormState();
+      $form_state->set('klaxon_step', $step);
+
+      // Rows only exist once the Add button has made them, so a test that
+      // fills three of them says so here, the way the button would have.
+      foreach ($state[$step] ?? [] as $key => $value) {
+        $form_state->set($key, $value);
+      }
+
+      $form_state->setValues($values + $this->stepDefaults($step));
+
+      $this->container->get('form_builder')->submitForm($form_object, $form_state);
+
+      $this->assertSame([], $form_state->getErrors(), sprintf('Step %d submitted without errors.', $step));
+    }
 
     // A programmatic submission builds the entity but never reaches the save
     // handler: that one hangs off the Save button, and the form builder picks
     // a triggering element too late for its handlers to be collected. So the
     // entity the form produced is saved here instead.
     $form_object->getEntity()->save();
+
+    return Alert::load($form_object->getEntity()->id());
+  }
+
+  /**
+   * The values a step needs that its test is not interested in.
+   */
+  protected function stepDefaults(int $step): array {
+    return match ($step) {
+      self::BASICS => ['status' => TRUE, 'description' => ''],
+      self::DELIVERY => [
+        'channels' => [],
+        'notify_on' => 'change',
+        'cooldown' => 0,
+        'per_row' => FALSE,
+        'severity' => 'warning',
+        'subject' => '',
+        'body' => '',
+      ],
+      default => [],
+    };
   }
 
 }
