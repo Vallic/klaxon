@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\klaxon\Alert;
 
+use Drupal\Component\Render\PlainTextOutput;
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
@@ -58,11 +60,11 @@ class MessageRenderer {
    */
   public function renderRecovery(AlertInterface $alert, Reading $reading): Message {
     return new Message(
-      subject: (string) $this->t('Recovered: @label', ['@label' => $alert->label()]),
-      body: (string) $this->t('@label is back to normal. Current value: @value.', [
+      subject: $this->plain($this->t('Recovered: @label', ['@label' => $alert->label()])),
+      body: $this->plain($this->t('@label is back to normal. Current value: @value.', [
         '@label' => $alert->label(),
         '@value' => $this->formatMeasure($reading->measure()),
-      ]),
+      ])),
       facts: $this->facts($reading),
       severity: Message::SEVERITY_RECOVERED,
     );
@@ -76,15 +78,17 @@ class MessageRenderer {
       return '';
     }
 
+    // Read as HTML, the way token replacement writes its values: what Klaxon
+    // puts in is escaped to match, and the whole is made plain text after.
     $template = strtr($template, [
-      '[klaxon:label]' => $alert->label(),
+      '[klaxon:label]' => Html::escape((string) $alert->label()),
       '[klaxon:value]' => $this->formatMeasure($reading->measure()),
       '[klaxon:count]' => (string) count($reading->rows),
-      '[klaxon:rows]' => $this->rowList($reading),
+      '[klaxon:rows]' => Html::escape($this->rowList($reading)),
     ]);
 
     // Entity tokens, so a message can name the thing it is about.
-    return $this->token->replace($template, $data, ['clear' => TRUE]);
+    return $this->plain($this->token->replace($template, $data, ['clear' => TRUE]));
   }
 
   /**
@@ -92,17 +96,17 @@ class MessageRenderer {
    */
   protected function defaultBody(AlertInterface $alert, Reading $reading): string {
     if ($reading->rows !== []) {
-      return (string) $this->t("@label matched @count.\n\n@rows", [
+      return $this->plain($this->t("@label matched @count.\n\n@rows", [
         '@label' => $alert->label(),
         '@count' => count($reading->rows),
         '@rows' => $this->rowList($reading),
-      ]);
+      ]));
     }
 
-    return (string) $this->t('@label is at @value.', [
+    return $this->plain($this->t('@label is at @value.', [
       '@label' => $alert->label(),
       '@value' => $this->formatMeasure($reading->measure()),
-    ]);
+    ]));
   }
 
   /**
@@ -120,7 +124,7 @@ class MessageRenderer {
 
     $remaining = count($reading->rows) - self::MAX_LISTED_ROWS;
     if ($remaining > 0) {
-      $lines[] = (string) $this->t('and @count more', ['@count' => $remaining]);
+      $lines[] = $this->plain($this->t('and @count more', ['@count' => $remaining]));
     }
 
     return implode("\n", $lines);
@@ -189,6 +193,19 @@ class MessageRenderer {
     return is_float($measure) && fmod($measure, 1.0) !== 0.0
       ? number_format($measure, 2)
       : number_format((float) $measure);
+  }
+
+  /**
+   * A message as the plain text a channel is sent.
+   *
+   * What `t()` and token replacement return is HTML: a value carried by an
+   * `@` placeholder or a token is escaped for a page. Every channel takes
+   * plain text and escapes for its own format — Slack its three characters,
+   * Telegram its HTML, the mail formatter what it converts — so sent as it
+   * came, an apostrophe reached Slack and Telegram as `&#039;`.
+   */
+  protected function plain(\Stringable|string $markup): string {
+    return PlainTextOutput::renderFromHtml((string) $markup);
   }
 
 }

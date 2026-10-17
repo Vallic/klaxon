@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\klaxon\Hook;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Hook\Attribute\Hook;
@@ -134,7 +135,10 @@ class KlaxonHooks {
     }
 
     $message['subject'] = $params['subject'] ?? '';
-    $message['body'][] = $params['body'] ?? '';
+    // Escaped, because the body is plain text and the mail system reads it
+    // as HTML to turn into text: a `<` in a row would otherwise be a tag,
+    // and taken out.
+    $message['body'][] = Html::escape($params['body'] ?? '');
   }
 
   /**
