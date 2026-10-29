@@ -133,6 +133,14 @@ class Sales extends OrderAlertBase {
   /**
    * {@inheritdoc}
    */
+  protected function formSections(): array {
+    // Flattened like the parent's sections, not stored as a key of its own.
+    return [...parent::formSections(), 'period'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state): void {
     parent::submitConfigurationForm($form, $form_state);
 

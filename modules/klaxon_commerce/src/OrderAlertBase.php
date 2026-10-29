@@ -108,6 +108,14 @@ abstract class OrderAlertBase extends EntityQuery {
   /**
    * {@inheritdoc}
    */
+  protected function formSections(): array {
+    // Flattened like the parent's sections, not stored as a key of its own.
+    return [...parent::formSections(), 'orders'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state): void {
     // The parent rebuilds the configuration from the sections it owns, so the
     // order-shaped values are merged on top of what it settled on.

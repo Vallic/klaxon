@@ -8,6 +8,7 @@ use Drupal\Tests\commerce_order\Kernel\OrderKernelTestBase;
 use Drupal\commerce_order\Entity\Order;
 use Drupal\commerce_order\Entity\OrderItem;
 use Drupal\commerce_order\Entity\OrderType;
+use Drupal\Core\Form\FormState;
 use Drupal\commerce_price\Price;
 use Drupal\klaxon\Alert\Deliverer;
 use Drupal\klaxon\Entity\Alert;
@@ -261,6 +262,38 @@ class CommerceAlertTest extends OrderKernelTestBase {
    */
   protected function typeConfig(string $id): array {
     return Alert::load($id)->getType()->getConfiguration();
+  }
+
+  /**
+   * A submitted form stores flat settings, not its details elements.
+   *
+   * The alert's schema knows the settings, not the sections the form groups
+   * them in, so a section left in the configuration fails every save.
+   */
+  public function testFormSectionsAreNotStored(): void {
+    $types = [
+      'commerce_sales' => 'period',
+      'commerce_quiet' => 'silence',
+      'commerce_stuck_orders' => 'stale',
+      'commerce_abandoned_carts' => 'stale',
+    ];
+    $manager = $this->container->get('plugin.manager.klaxon_alert_type');
+
+    foreach ($types as $id => $section) {
+      $type = $manager->createInstance($id, []);
+      $form_state = new FormState();
+      $form = $type->buildConfigurationForm([], $form_state);
+      $form_state->setValues([
+        'orders' => ['order_types' => ['default' => 'default'], 'states' => [], 'store_id' => '', 'currency' => ''],
+        $section => ['hours' => 5, 'minutes' => 20, 'window_from' => '-2 days', 'window_to' => 'now', 'limit' => 50],
+      ]);
+      $type->submitConfigurationForm($form, $form_state);
+      $configuration = $type->getConfiguration();
+
+      $this->assertArrayNotHasKey('orders', $configuration, $id);
+      $this->assertArrayNotHasKey($section, $configuration, $id);
+      $this->assertSame(['default'], $configuration['order_types'], $id);
+    }
   }
 
   /**
